@@ -101,6 +101,11 @@ fun ScoutScreen(meter: PhoneMeter) {
         }
     }
 
+    // Entering the walk: set a bright, even exposure for the room right away
+    LaunchedEffect(step) {
+        if (step == Step.WALK) { delay(700); meter.lockForScan(); version++ }
+    }
+
     fun tagNow(type: TagType?) {
         val s = Scout.session.value ?: return
         val fr = AppState.frame.value ?: run { msg = "No camera view yet."; return }
@@ -193,10 +198,11 @@ fun ScoutScreen(meter: PhoneMeter) {
                     color = if (walking && speed > 35f) Color(0xFFFF8500) else Color(0xFF7BE38C),
                     fontWeight = FontWeight.SemiBold, fontSize = 18.sp, modifier = Modifier.padding(vertical = 6.dp),
                 )
-                Text("Aim for 120 or more. Exposure is locked for the whole walk.", color = Color(0xFF8A8A8A), fontSize = 12.sp)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
+                Text("Aim for 120 or more. Exposure is set for the room when you open this step and stays locked so the photos match. If it looks too dark or bright, point at the middle of the room and tap Re-set exposure.", color = Color(0xFF8A8A8A), fontSize = 12.sp)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
                     if (!walking) Button(onClick = { meter.lockForScan(); walking = true }) { Text(if ((s?.photos?.size ?: 0) == 0) "Start walking" else "Resume") }
                     else OutlinedButton(onClick = { walking = false }) { Text("Pause") }
+                    OutlinedButton(onClick = { meter.lockForScan() }) { Text("Re-set exposure") }
                     Button(onClick = {
                         walking = false; meter.unlockScan()
                         s?.scaleNote = "1 m tape measure on the floor"

@@ -267,8 +267,10 @@ class PhoneMeter(private val context: Context) {
     fun lockForScan() {
         val f = AppState.frame.value ?: return
         val sorted = f.ev.sorted()
-        val p98 = sorted[(sorted.size * 0.98).toInt().coerceAtMost(sorted.size - 1)].toDouble()
-        scanEv = p98 - Expo.log2(0.8 / 0.18)
+        fun pct(q: Double) = sorted[(sorted.size * q).toInt().coerceAtMost(sorted.size - 1)].toDouble()
+        // Expose for the room: the middle of the frame at middle gray, but dark enough that 90% of it stays under clipping.
+        // Windows and lamps may clip; that's fine for the scan.
+        scanEv = maxOf(pct(0.5), pct(0.9) - Expo.log2(1.0 / 0.18))
         applyManual(AppState.settings.value, AppState.calibration.value, AppState.phone.value)
     }
 
