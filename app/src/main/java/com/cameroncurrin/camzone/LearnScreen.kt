@@ -1,5 +1,12 @@
 package com.cameroncurrin.camzone
 
+import kotlin.math.roundToInt
+import kotlin.math.pow
+import kotlin.math.log2
+import kotlin.math.abs
+import androidx.compose.material3.Slider
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -88,6 +95,7 @@ private fun LessonCard(l: Lesson) {
                 l.diagram?.let { d ->
                     TopDownMap(lessonItems(d), Modifier.padding(top = 10.dp), subjects = l.subjects)
                 }
+                if (l.id == "inverse") InverseSquareCalc()
                 l.gear?.let { g ->
                     Text("With your kit", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, modifier = Modifier.padding(top = 10.dp))
                     Text(g, color = Color(0xFFCCCCCC), fontSize = 14.sp)
@@ -101,5 +109,36 @@ private fun LessonCard(l: Lesson) {
                 Text("Tap to open", color = Color(0xFF666666), fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
             }
         }
+    }
+}
+
+
+/** On-set helper: how far to move a light for a stop change, and the stop change between two distances. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun InverseSquareCalc() {
+    var d by rememberSaveable { mutableStateOf(1.5f) }
+    var change by rememberSaveable { mutableStateOf(-1.0) }
+    val newD = d * 2.0.pow(-change / 2.0)
+    Column(Modifier.padding(top = 12.dp).background(Color(0xFF242424), RoundedCornerShape(8.dp)).padding(12.dp)) {
+        Text("Distance calculator", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+        Text("Light is now ${"%.1f".format(d)} m (${(d * 3.28f).roundToInt()} ft) from the subject", color = Color(0xFFCCCCCC), fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp))
+        Slider(d, { d = (it * 10).roundToInt() / 10f }, valueRange = 0.3f..8f)
+        Text("I want the subject", color = Color(0xFFCCCCCC), fontSize = 14.sp)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf(-2.0, -1.0, -2.0 / 3, -1.0 / 3, 1.0 / 3, 2.0 / 3, 1.0, 2.0).forEach { c ->
+                Chip(Expo.formatStops(c), abs(change - c) < 0.01) { change = c }
+            }
+        }
+        Text(
+            "Move the light to ${"%.2f".format(newD)} m (${(newD * 3.28).roundToInt()} ft): ${if (newD > d) "back" else "in"} ${"%.2f".format(abs(newD - d))} m.",
+            color = Color(0xFF7BE38C), fontWeight = FontWeight.SemiBold, fontSize = 15.sp, modifier = Modifier.padding(top = 8.dp),
+        )
+        val wall = d + 1.0
+        Text(
+            "Falloff check: with the light at ${"%.1f".format(d)} m, something 1 m behind the subject is ${"%.1f".format(2 * log2(wall / d))} stops darker. " +
+                "At ${"%.1f".format(newD)} m it would be ${"%.1f".format(2 * log2((newD + 1) / newD))} stops darker.",
+            color = Color(0xFFAAAAAA), fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp),
+        )
     }
 }

@@ -79,6 +79,26 @@ object Lessons {
             ),
         ),
         Lesson(
+            "inverse", "The inverse square law",
+            "Twice as far from the light = a quarter of the light = 2 stops darker.",
+            listOf(
+                "Light spreads out as it travels. Every time you double the distance between a light and your subject, the light on them drops to one quarter: 2 stops darker. Halve the distance and it's 4 times brighter: 2 stops more.",
+                "The one series to memorize: 1, 1.4, 2, 2.8, 4, 5.6. Each step farther is 1 stop less light. It's the same series as T-stops, so you already know it. Light at 1 m → move it to 1.4 m = −1 stop. To 2 m = −2 stops.",
+                "Falloff is what makes it useful. A light close to the face falls off fast: the face is bright, the background behind them goes dark. That's moody, contrasty, and great for low-key and night scenes.",
+                "A light far away falls off slowly: the face and the background get nearly the same light. That's even and natural, like sun through a window. To light a whole room evenly, back the light up and turn it up.",
+                "Example: key 1 m from the face, wall 2 m behind them (3 m from the light). The wall gets about 3 stops less than the face. Move the key back to 3 m and the wall (5 m away) is only about 1½ stops under.",
+                "Soft light follows the same law once you're farther away than the size of the source. Close in, a big soft source like the Light Dome falls off fast, which is why it wraps the face and leaves the background dark.",
+                "Use it instead of the dimmer when you want to change the look, not just the brightness: distance changes the falloff, the dimmer doesn't.",
+            ),
+            tryIt = listOf(
+                "Drill 1, the series: put the amaran 200x S 1 m from a gray card. Meter it in Spot mode. Move the light to 1.4 m, 2 m and 2.8 m and meter each time. You should see about −1, −2 and −3. Do this once and the numbers stick.",
+                "Drill 2, falloff: actor 1 m in front of a wall, key 1 m from the actor. Tap the face, then the wall, and note the difference. Now move the key to 3 m, dim it up until the face matches, and tap the wall again. See how much closer the wall gets.",
+                "Drill 3, guess first: before you meter any setup, guess the stop change from the distance. Then check in Cam Zone. A week of guessing on every setup and you'll do it by eye.",
+                "Use the calculator below on set: how far to move a light for the change you want.",
+            ),
+            diagram = listOf(DLight("Key 1 m: fast falloff", 40f, 0.55f), DLight("Same light at 2 m: −2 stops", 40f, 1.1f, DLight.Kind.FILL)),
+        ),
+        Lesson(
             "framing", "Blocking and framing grids",
             "Blocking is where the actors stand and move. Framing grids help you place them in the shot.",
             listOf(

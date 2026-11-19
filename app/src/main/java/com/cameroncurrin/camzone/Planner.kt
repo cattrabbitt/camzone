@@ -231,6 +231,7 @@ object Planner {
                     "Add the rim and look for a thin bright edge on hair and shoulder, not a glow on the face.",
                     "Light the background last, low, so it never competes with the face.",
                     "If the key spills on the background, add the Light Dome's grid.",
+                    "Inverse square law: to darken the background without touching the face, move the subject farther from the wall and the key closer to the face (then dim it down).",
                 ),
                 listOf(
                     Source("Karl Weinreich: cinematic interview lighting (600D + Light Dome III + grid)", "https://vigyata.ai/@KarlWeinreich/video/cinematic-interview-lighting-is-pretty-simple--tIsCAeRaahI"),
@@ -257,7 +258,7 @@ object Planner {
                 "A hard light pushed through the window from far away for crisp sun streaks, with a softer key inside. Classic day-interior look.",
                 lights, faceTxt,
                 listOf(
-                    "Put the hard light as far back and as high as you safely can, so the falloff is gentle and the shadows sharp.",
+                    "Put the hard light as far back and as high as you safely can. Inverse square law: from far away the light barely falls off across the room, so it reads like real sun.",
                     "Let the sun streak hit the floor or a wall in frame, not the face.",
                     "Key the face with the softer light from the same side, lower.",
                     "Keep the window from clipping in the Map LUT: orange is fine, red only for tiny highlights.",
@@ -320,7 +321,7 @@ object Planner {
                 listOf(
                     "Set the PYXIS to 3200K. Turn on the practical lamps in frame (dim them).",
                     "Put the moonlight outside or far back, high, through the window or across the back of the room.",
-                    "Key the face from the lamp's side with the warm light, low and close.",
+                    "Key the face from the lamp's side with the warm light, low and close. Close light falls off fast (inverse square law), so the room stays dark around them.",
                     "Expose the face properly; let the room fall into blue in the Map LUT, not purple.",
                 ),
                 listOf(

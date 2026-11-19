@@ -334,6 +334,10 @@ object Match {
         if (r.keyHeight == "low") tips += "Light from below reads as unnatural or scary. Motivate it with something in frame."
         if (r.faceX < 0.42 || r.faceX > 0.58) tips += "Subject sits off center (${if (r.faceX < 0.5) "left" else "right"}): give looking room on the other side."
         else tips += "Subject is near center: a deliberate, symmetric frame."
+        tips += if (r.bgStops - r.faceStops < -1.5)
+            "Inverse square law: keep the key close to the face. Close light falls off fast, so the background drops away like in the still. Each doubling of distance is −2 stops."
+        else
+            "Inverse square law: back the key off and turn it up. Far light falls off slowly, so the face and background stay close in brightness like the still."
         tips += "Stills are graded, so treat the stops as a starting point. Match the contrast and face placement first, then fine-tune by eye with the Ghost overlay."
 
         val summary = listOf(
