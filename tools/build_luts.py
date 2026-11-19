@@ -22,6 +22,21 @@ def gen5_decode(y):
     return np.where(y < LOG_CUT, (y - E) / D, np.exp((y - C) / A) - B)
 
 
+# ---------- DaVinci Intermediate transfer (DaVinci Wide Gamut timelines) ----------
+DI_A, DI_B, DI_C, DI_M = 0.0075, 7.0, 0.07329248, 10.44426855
+DI_LIN_CUT, DI_LOG_CUT = 0.00262409, 0.02740668
+
+
+def di_encode(x):
+    x = np.asarray(x, dtype=np.float64)
+    return np.where(x <= DI_LIN_CUT, x * DI_M, (np.log2(np.maximum(x, DI_LIN_CUT) + DI_A) + DI_B) * DI_C)
+
+
+def di_decode(y):
+    y = np.asarray(y, dtype=np.float64)
+    return np.where(y <= DI_LOG_CUT, y / DI_M, 2.0 ** (y / DI_C - DI_B) - DI_A)
+
+
 # ---------- Gamut: BMD Wide Gamut Gen 5 -> Rec.709 ----------
 def rgb_to_xyz(prim, white=(0.3127, 0.3290)):
     xyz = lambda x, y: np.array([x / y, 1.0, (1 - x - y) / y])
@@ -34,6 +49,14 @@ M_WG = rgb_to_xyz([(0.7177, 0.3171), (0.2280, 0.8616), (0.1006, -0.0820)])
 M_709 = rgb_to_xyz([(0.64, 0.33), (0.30, 0.60), (0.15, 0.06)])
 WG_TO_709 = np.linalg.inv(M_709) @ M_WG
 Y_WG = M_WG[1]  # luminance weights in Wide Gamut Gen 5
+M_DWG = rgb_to_xyz([(0.8000, 0.3130), (0.1682, 0.9877), (0.0790, -0.1155)])
+DWG_TO_WG = np.linalg.inv(M_WG) @ M_DWG
+
+# Input spaces: name -> (decode to linear, matrix into Wide Gamut Gen 5)
+SPACES = {
+    'gen5': (lambda v: gen5_decode(v), np.eye(3)),
+    'dwg': (lambda v: di_decode(v), DWG_TO_WG),
+}
 
 GRAY = 0.18
 CLIP_STOPS = 6.0          # starting value, confirmed later with the zebra check
@@ -65,8 +88,9 @@ def classify(lin_wg):
     return np.log2(Y / GRAY), np.log2(mx / GRAY)
 
 
-def paint(log_rgb, style):
-    lin = gen5_decode(log_rgb)
+def paint(log_rgb, style, space='gen5'):
+    dec, mtx = SPACES[space]
+    lin = dec(log_rgb) @ mtx.T
     s, smax = classify(lin)
     disp = display_rec709(lin)
     luma = disp @ np.array([0.2126, 0.7152, 0.0722])
@@ -100,8 +124,8 @@ def paint(log_rgb, style):
         yellow = (s >= 4 / 3) & (smax < WARN_STOPS)
         # blue gets darker the deeper it goes: -5 dim, -1/2 bright
         bshade = np.clip((s + 5) / 4.5, 0, 1)[..., None]
-        bv = np.array(COL['blue']) * (0.45 + 0.55 * bshade)
-        out[blue] = bv[blue]
+        bv = np.array(COL['blue']) * (0.45 + 0.55 * bshade) * (0.80 + 0.30 * frac)[..., None]
+        out[blue] = np.clip(bv, 0, 1)[blue]
         put(yellow, COL['yellow'])
     if style in ('map', 'clean'):
         put(green, COL['green'])
@@ -112,13 +136,18 @@ def paint(log_rgb, style):
     return np.clip(out, 0, 1)
 
 
-def write_cube(path, style, n=33):
+SPACE_NAMES = {'gen5': 'Blackmagic Film Gen 5', 'dwg': 'DaVinci Wide Gamut Intermediate'}
+VERSION = '1.1'
+
+
+def write_cube(path, style, n=33, space='gen5'):
     g = np.linspace(0, 1, n)
     b, gg, r = np.meshgrid(g, g, g, indexing='ij')  # red changes fastest
     grid = np.stack([r, gg, b], axis=-1).reshape(-1, 3)
-    vals = paint(grid, style)
+    vals = paint(grid, style, space)
     with open(path, 'w') as f:
-        f.write(f'TITLE "Cam Zone {style.title()} - BMD Film Gen 5"\n')
+        f.write(f'TITLE "Cam Zone {style.title()} v{VERSION} - {SPACE_NAMES[space]}"\n')
+        f.write(f'# Input: {SPACE_NAMES[space]}. Monitoring only, remove before export.\n')
         f.write(f'# Clip warning set for +{CLIP_STOPS:g} stops over middle gray (starting value)\n')
         f.write(f'LUT_3D_SIZE {n}\n')
         for v in vals:

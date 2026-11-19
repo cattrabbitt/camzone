@@ -1,4 +1,5 @@
-TITLE "Cam Zone Guard - BMD Film Gen 5"
+TITLE "Cam Zone Guard v1.1 - Blackmagic Film Gen 5"
+# Input: Blackmagic Film Gen 5. Monitoring only, remove before export.
 # Clip warning set for +6 stops over middle gray (starting value)
 LUT_3D_SIZE 33
 0.300000 0.060000 0.400000
