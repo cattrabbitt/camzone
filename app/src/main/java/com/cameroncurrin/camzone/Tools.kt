@@ -139,9 +139,14 @@ fun ToolsRow() {
 /** Manual controls for the phone camera, like the Blackmagic Camera app's control strip. */
 @Composable
 fun PhoneControlsPanel(lenses: List<Pair<String, String>>) {
+    Section("Phone camera") { PhoneControlsBody(lenses) }
+}
+
+@Composable
+fun PhoneControlsBody(lenses: List<Pair<String, String>>) {
     val p by AppState.phone.collectAsState()
     fun set(n: PhoneControls) { AppState.phone.value = n }
-    Section("Phone camera") {
+    run {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(p.matchPyxis, { set(p.copy(matchPyxis = true)) }, { Text("Match PYXIS") })
             FilterChip(!p.matchPyxis, { set(p.copy(matchPyxis = false)) }, { Text("Manual") })
@@ -183,12 +188,12 @@ fun PhoneControlsPanel(lenses: List<Pair<String, String>>) {
 }
 
 @Composable
-private fun Label(t: String) {
+internal fun Label(t: String) {
     Text(t, color = Color.White, fontWeight = FontWeight.Medium, fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp))
 }
 
 @Composable
-private fun <T> ChipRow(options: List<T>, selected: T, label: (T) -> String, onPick: (T) -> Unit) {
+internal fun <T> ChipRow(options: List<T>, selected: T, label: (T) -> String, onPick: (T) -> Unit) {
     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         options.forEach { o -> FilterChip(o == selected, { onPick(o) }, { Text(label(o), fontSize = 13.sp) }) }
     }

@@ -81,6 +81,8 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
     var fillPt by remember { mutableStateOf<Spot?>(null) }
     var showSettings by remember { mutableStateOf(false) }
     var showCal by remember { mutableStateOf(false) }
+    var picker by remember { mutableStateOf<PyxisParam?>(null) }
+    var panel by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val lifecycle = LocalLifecycleOwner.current
     val phoneStatus by meter.status.collectAsState()
@@ -93,26 +95,13 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
 
     val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     val settingsStrip: @Composable () -> Unit = {
-        // Settings strip
-        Row(
-            Modifier.fillMaxWidth().background(Color(0xFF1B1B1B), RoundedCornerShape(10.dp))
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    "ISO ${settings.iso} · ${fmt(settings.shutterAngle)}° · ${fmt(settings.fps)} fps · ${Expo.formatT(settings.tStop)}" +
-                        if (settings.nd > 0) " · ND ${fmt(settings.nd)} st" else "",
-                    color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 15.sp,
-                )
-                Text(
-                    if (linkState.connected) "Live from ${linkState.name}" else if (fromCamera) "Last read from camera" else "Entered by hand · not connected",
-                    color = if (linkState.connected) Color(0xFF29B83D) else Color(0xFF9A9A9A), fontSize = 12.sp,
-                )
-            }
-            TextButton(onClick = { showSettings = true }) { Text("Edit") }
-        }
-
+        PyxisStrip(
+            settings,
+            if (linkState.connected) "Live from ${linkState.name} · tap a setting to change it" else if (fromCamera) "Last read from camera" else "Not connected · tap a setting to set it",
+            if (linkState.connected) Color(0xFF29B83D) else Color(0xFF9A9A9A),
+            onPick = { picker = it },
+            onMore = { showSettings = true },
+        )
     }
     val previewBox: @Composable (Modifier) -> Unit = { m ->
         // Camera view with zone overlay
@@ -166,6 +155,45 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
                     marker(keyPt, Color(0xFFFFFFFF)); marker(fillPt, Color(0xFF1F61EB))
                 } else marker(face, Color.White)
             }
+            // Reading badge, top-left
+            val badge = if (mode == Mode.CONTRAST) {
+                val k = keyPt; val fl = fillPt
+                if (k != null && fl != null) "Contrast " + Expo.ratio(k.ev - fl.ev) else null
+            } else face?.let { "Face " + Expo.formatStops(Expo.stopsAt(it.ev, settings)) }
+            if (badge != null) {
+                val col = if (mode == Mode.CONTRAST) Color.White else face?.let { Color(Expo.zone(Expo.stopsAt(it.ev, settings)).argb) } ?: Color.White
+                Text(badge, color = col, fontWeight = FontWeight.Bold, fontSize = 15.sp,
+                    modifier = Modifier.align(Alignment.TopStart).padding(8.dp).background(Color(0x99000000), RoundedCornerShape(6.dp)).padding(horizontal = 8.dp, vertical = 4.dp))
+            }
+            // Setting buttons on the feed, right edge
+            Column(Modifier.align(Alignment.TopEnd).padding(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("Phone", "Tools", "View").forEach { n ->
+                    FeedButton(n, panel == n) { panel = if (panel == n) null else n }
+                }
+            }
+            if (panel != null) {
+                FeedPanel(Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(0.5f).verticalScroll(rememberScrollState())) {
+                    when (panel) {
+                        "Phone" -> PhoneControlsBody(lenses)
+                        "Tools" -> ToolsRow()
+                        else -> {
+                            Text("Mode", color = Color(0xFF9A9A9A), fontSize = 12.sp)
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Mode.values().forEach { md ->
+                                    FilterChip(selected = mode == md, onClick = { mode = md }, label = { Text(md.label) })
+                                }
+                            }
+                            Text("Look", color = Color(0xFF9A9A9A), fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Look.values().forEach { l ->
+                                    FilterChip(selected = look == l, onClick = { AppState.look.value = l; AppState.save() }, label = { Text(l.label) })
+                                }
+                            }
+                        }
+                    }
+                    Text("Tap ${panel} again to close", color = Color(0xFF8A8A8A), fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp))
+                }
+            }
         }
     }
     val controls: @Composable () -> Unit = {
@@ -174,24 +202,7 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
             color = Color(0xFF8A8A8A), fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp),
         )
         if (tools.histogram) StopHistogram(f = frame, s = settings, cal = cal)
-        Spacer(Modifier.height(8.dp))
-        ToolsRow()
-        Spacer(Modifier.height(4.dp))
-
-        // Mode chips
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Mode.values().forEach { m ->
-                FilterChip(selected = mode == m, onClick = { mode = m }, label = { Text(m.label) })
-            }
-        }
-        Text("Look", color = Color(0xFF9A9A9A), fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Look.values().forEach { l ->
-                FilterChip(selected = look == l, onClick = { AppState.look.value = l; AppState.save() }, label = { Text(l.label) })
-            }
-        }
-        Spacer(Modifier.height(8.dp))
-
+        Spacer(Modifier.height(6.dp))
         // Readouts
         if (mode == Mode.CONTRAST) {
             val k = keyPt
@@ -263,8 +274,6 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
             )
         }
 
-        PhoneControlsPanel(lenses)
-        Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = { showCal = true }) { Text(if (cal == 0.0) "Calibrate with gray card" else "Recalibrate") }
             OutlinedButton(onClick = { AppState.face.value = null; keyPt = null; fillPt = null }) { Text("Clear") }
@@ -292,6 +301,7 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
         }
     }
 
+    picker?.let { pp -> PyxisPicker(pp, settings, link()) { picker = null } }
     if (showSettings) SettingsDialog(settings) { showSettings = false }
     if (showCal) CalibrateDialog(meter, settings) { showCal = false }
 }
