@@ -86,6 +86,11 @@ private val steps = listOf(
 @Composable
 fun GuideScreen() {
     Column(Modifier.verticalScroll(rememberScrollState()).padding(12.dp)) {
+        Section("App updates") {
+            UpdateCheckRow()
+            Text("The app checks GitHub each time it opens. When a new build is there, a green bar shows at the top: tap Update, then Install. Your settings stay.",
+                color = Color(0xFFAAAAAA), fontSize = 13.sp)
+        }
         Section("Color code") {
             Zone.values().forEach { z ->
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 3.dp)) {

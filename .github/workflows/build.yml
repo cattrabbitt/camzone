@@ -27,7 +27,9 @@ jobs:
         run: gradle assembleDebug --no-daemon
 
       - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk CamZone.apk
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk CamZone.apk
+          echo "${{ github.run_number }}" > version.txt
 
       - uses: actions/upload-artifact@v4
         with:
@@ -40,6 +42,6 @@ jobs:
         run: |
           gh release delete latest --yes --cleanup-tag || true
           (cd luts && zip -q ../CamZone_LUTs.zip CamZone_*.cube CamZone_Legend.png "Install CamZone LUTs in Resolve.bat")
-          gh release create latest CamZone.apk CamZone_LUTs.zip luts/CamZone_Map_Gen5.cube luts/CamZone_Guard_Gen5.cube luts/CamZone_Map_DWG.cube luts/CamZone_Guard_DWG.cube luts/CamZone_Legend.png \
+          gh release create latest CamZone.apk version.txt CamZone_LUTs.zip luts/CamZone_Map_Gen5.cube luts/CamZone_Guard_Gen5.cube luts/CamZone_Map_DWG.cube luts/CamZone_Guard_DWG.cube luts/CamZone_Legend.png \
             --title "Cam Zone (latest build)" \
             --notes "Install CamZone.apk on the Pixel. PYXIS: load the two _Gen5 .cube files. Resolve: unzip CamZone_LUTs.zip and run the Install bat."

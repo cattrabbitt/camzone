@@ -77,6 +77,7 @@ fun App(meter: PhoneMeter, ble: PyxisBle, rest: PyxisRest) {
     var tab by remember { mutableIntStateOf(0) }
     Scaffold(
         containerColor = Color(0xFF111111),
+        topBar = { UpdateBanner() },
         bottomBar = {
             NavigationBar(containerColor = Color(0xFF1B1B1B)) {
                 NavigationBarItem(selected = tab == 0, onClick = { tab = 0 },

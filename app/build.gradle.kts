@@ -11,8 +11,20 @@ android {
         applicationId = "com.cameroncurrin.camzone"
         minSdk = 29
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1"
+        // CI sets the run number so every build is newer than the last one
+        val run = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInt()
+        versionCode = run
+        versionName = "1.$run"
+    }
+
+    // One fixed key for every build, so a new APK installs over the old one
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("camzone-debug.jks")
+            storePassword = "camzone"
+            keyAlias = "camzone"
+            keyPassword = "camzone"
+        }
     }
 
     buildTypes {
@@ -29,6 +41,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.14"
