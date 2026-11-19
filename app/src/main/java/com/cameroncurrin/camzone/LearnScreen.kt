@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
@@ -34,6 +35,14 @@ import androidx.compose.ui.unit.sp
 fun LearnScreen() {
     var tab by rememberSaveable { mutableIntStateOf(0) }
     Column(Modifier.fillMaxSize()) {
+        androidx.compose.foundation.layout.Row(Modifier.padding(start = 12.dp, top = 10.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(R.drawable.cc_logo), "Cameron Currin logo",
+                modifier = Modifier.size(44.dp))
+            Column(Modifier.padding(start = 10.dp)) {
+                Text("Cam Zone", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                Text("Cameron Currin", color = Color(0xFF9A9A9A), fontSize = 12.sp)
+            }
+        }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 10.dp)) {
             listOf("Basics", "Lighting techniques", "App guide").forEachIndexed { i, l -> Chip(l, tab == i) { tab = i } }
         }

@@ -106,7 +106,7 @@ object Planner {
 
     private fun has(kit: Set<Gear>, g: Gear) = g in kit
 
-    private fun softKey(kit: Set<Gear>): String? = when {
+    internal fun softKey(kit: Set<Gear>): String? = when {
         has(kit, Gear.LS600D) && has(kit, Gear.LIGHTDOME) -> "600d + Light Dome III"
         has(kit, Gear.AMARAN200XS) && has(kit, Gear.LIGHTDOME) -> "amaran 200x S + Light Dome III"
         has(kit, Gear.LS600D) && has(kit, Gear.REFLECTOR) -> "600d bounced into the 5-in-1 white"
@@ -115,7 +115,7 @@ object Planner {
         else -> null
     }
 
-    private fun hardKey(kit: Set<Gear>): String? = when {
+    internal fun hardKey(kit: Set<Gear>): String? = when {
         has(kit, Gear.LS600D) && has(kit, Gear.FRESNEL) -> "600d + Fresnel lens"
         has(kit, Gear.LS600D) && has(kit, Gear.SPOTLIGHT) -> "600d + spotlight"
         has(kit, Gear.LS600D) -> "600d bare"
@@ -123,7 +123,7 @@ object Planner {
         else -> null
     }
 
-    private fun rim(kit: Set<Gear>, notThis: String?): String? = when {
+    internal fun rim(kit: Set<Gear>, notThis: String?): String? = when {
         has(kit, Gear.PAVOTUBE) -> "PavoTube II 30C"
         has(kit, Gear.AMARAN200XS) && notThis?.contains("200x") != true -> "amaran 200x S"
         else -> null

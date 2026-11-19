@@ -86,6 +86,10 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
     var picker by remember { mutableStateOf<PyxisParam?>(null) }
     var panel by remember { mutableStateOf<String?>(null) }
     val full by AppState.fullFeed.collectAsState()
+    val matchImg by Match.image.collectAsState()
+    val matchRead by Match.read.collectAsState()
+    val ghost by Match.ghost.collectAsState()
+    val matchTarget by AppState.matchTarget.collectAsState()
     // Full screen also hides the phone's status and navigation bars
     val view = androidx.compose.ui.platform.LocalView.current
     DisposableEffect(full) {
@@ -177,6 +181,12 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
                     marker(keyPt, Color(0xFFFFFFFF)); marker(fillPt, Color(0xFF1F61EB))
                 } else marker(face, Color.White)
             }
+            // Ghost: the reference still over the live picture, for framing and light direction
+            val gi = matchImg
+            if (ghost && gi != null) {
+                val gb = remember(gi) { gi.asImageBitmap() }
+                androidx.compose.foundation.Image(gb, null, contentScale = androidx.compose.ui.layout.ContentScale.Crop, alpha = 0.4f, modifier = Modifier.matchParentSize())
+            }
             // Reading badge, top-left
             val badge = if (mode == Mode.CONTRAST) {
                 val k = keyPt; val fl = fillPt
@@ -189,7 +199,7 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
             }
             // Setting buttons on the feed, right edge
             Column(Modifier.align(Alignment.TopEnd).padding(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("Phone", "Tools", "View").forEach { n ->
+                (listOf("Phone", "Tools", "View") + if (matchImg != null) listOf("Match") else emptyList()).forEach { n ->
                     FeedButton(n, panel == n) { panel = if (panel == n) null else n }
                 }
                 FeedButton(if (full) "Exit" else "Full", full) { AppState.fullFeed.value = !full }
@@ -199,6 +209,25 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
                     when (panel) {
                         "Phone" -> PhoneControlsBody(lenses)
                         "Tools" -> ToolsRow()
+                        "Match" -> {
+                            val rr = matchRead
+                            if (rr != null) {
+                                val rc = Match.recipe(rr, AppState.kit.value, settings)
+                                Text(rc.title, color = Color.White, fontWeight = FontWeight.Bold)
+                                val fNow = face?.let { Expo.formatStops(Expo.stopsAt(it.ev, settings)) } ?: "tap the face"
+                                Text("Face: target ${Expo.formatStops(rc.faceTarget)} · now $fNow", color = Color(0xFFDDDDDD), fontSize = 14.sp)
+                                val k = keyPt; val fl = fillPt
+                                val cNow = if (k != null && fl != null) Expo.ratio(k.ev - fl.ev) else "use Contrast mode"
+                                Text("Contrast: target ${Expo.ratio(rc.ratioTarget)} · now $cNow", color = Color(0xFFDDDDDD), fontSize = 14.sp)
+                                Text("Background: ${Expo.formatStops(rc.bgTarget)} vs the face", color = Color(0xFFDDDDDD), fontSize = 14.sp)
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)) {
+                                    FilterChip(ghost, { Match.ghost.value = !ghost }, { Text("Ghost overlay") })
+                                    FilterChip(matchTarget != null, {
+                                        AppState.matchTarget.value = if (matchTarget != null) null else rc.faceTarget
+                                    }, { Text("Aim at this face target") })
+                                }
+                            }
+                        }
                         else -> {
                             Text("Mode", color = Color(0xFF9A9A9A), fontSize = 12.sp)
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -251,6 +280,7 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
         }
 
         // Advice
+        @Suppress("UNUSED_VARIABLE") val mt = matchTarget // re-run advice when the match target changes
         val list = Advisor.build(settings, look, face, frame, cal, widest, narrowest)
         list.forEach { sug ->
             SuggestionCard(

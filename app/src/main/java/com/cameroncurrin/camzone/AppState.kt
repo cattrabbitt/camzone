@@ -44,6 +44,8 @@ object AppState {
     val tools = MutableStateFlow(Tools())
     /** Camera feed full screen: menus and strips hidden. */
     val fullFeed = MutableStateFlow(false)
+    /** Face target from a matched still; overrides the Look while set. */
+    val matchTarget = MutableStateFlow<Double?>(null)
     val kit = MutableStateFlow(Gear.values().toSet())
     val projectType = MutableStateFlow(ProjectType.NARRATIVE)
     val mood = MutableStateFlow(Mood.NATURAL)

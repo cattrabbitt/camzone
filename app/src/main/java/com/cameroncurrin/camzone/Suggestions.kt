@@ -43,7 +43,7 @@ object Advisor {
                 "Switch to Spot, then tap your subject's face (or the gray card). Advice appears here.")
         } else {
             val now = Expo.stopsAt(face.ev, settings)
-            val target = look.target
+            val target = AppState.matchTarget.value ?: look.target
             val need = Expo.roundT(Expo.tStopFor(face.ev, target, settings))
             val delta = Expo.stopsBetween(settings.tStop, need) // + = too bright, close down
             val zone = Expo.zone(now)

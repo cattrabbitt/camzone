@@ -39,6 +39,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -47,6 +48,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -63,6 +65,7 @@ class MainActivity : ComponentActivity() {
         ble = PyxisBle(this)
         rest = PyxisRest(lifecycleScope)
         askCamera.launch(Manifest.permission.CAMERA)
+        lifecycleScope.launch { Match.restore(this@MainActivity) }
 
         setContent {
             MaterialTheme(colorScheme = darkColorScheme(
@@ -111,7 +114,8 @@ fun App(meter: PhoneMeter, ble: PyxisBle, rest: PyxisRest) {
             when (tab) {
                 0 -> MeterScreen(meter) { linkFor(ble, rest) }
                 1 -> ScoutScreen(meter)
-                2 -> LinkScreen(ble, rest)
+                2 -> MatchScreen()
+                3 -> LinkScreen(ble, rest)
                 else -> LearnScreen()
             }
             if (!navShown && !full) {
@@ -136,7 +140,8 @@ fun App(meter: PhoneMeter, ble: PyxisBle, rest: PyxisRest) {
             NavigationBar(containerColor = Color(0xFF1B1B1B)) {
                 val items = listOf(
                     Triple("Meter", Icons.Filled.Home, 0), Triple("Scout", Icons.Filled.Place, 1),
-                    Triple("PYXIS", Icons.Filled.Settings, 2), Triple("Learn", Icons.Filled.Info, 3),
+                    Triple("Match", Icons.Filled.Star, 2),
+                    Triple("PYXIS", Icons.Filled.Settings, 3), Triple("Learn", Icons.Filled.Info, 4),
                 )
                 items.forEach { (label, icon, i) ->
                     NavigationBarItem(selected = tab == i, onClick = { tab = i; poke++ },

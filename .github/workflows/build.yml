@@ -23,6 +23,11 @@ jobs:
         with:
           gradle-version: "8.7"
 
+      - name: App icon from cameroncurrin.com
+        run: |
+          sudo apt-get install -y -qq librsvg2-bin imagemagick >/dev/null
+          tools/make_icons.sh
+
       - name: Build
         run: gradle assembleDebug --no-daemon
 

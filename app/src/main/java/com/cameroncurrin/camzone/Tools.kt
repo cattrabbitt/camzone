@@ -54,6 +54,9 @@ fun renderOverlay(f: ZoneFrame, s: CamSettings, cal: Double, zones: Boolean, too
                 if (d > 0.9f) c = 0xFF00E5FF.toInt()
             }
             if (tools.zebra && st >= tools.zebraAt && ((x + y) / 3) % 2 == 0) c = 0xFFFFFFFF.toInt()
+            // The phone itself clipped here, so the true brightness is unknown (at least this bright).
+            // Black and white diagonal hatch: lower the phone ISO or use Match PYXIS to read it.
+            if (f.phoneClipped[i] && st < Expo.CLIP) c = if (((x - y + 4096) / 4) % 2 == 0) 0xFF000000.toInt() else 0xFFFFFFFF.toInt()
             px[i] = c
         }
     }
@@ -153,11 +156,11 @@ fun PhoneControlsBody(lenses: List<Pair<String, String>>) {
         }
         Text(
             if (p.matchPyxis) "ISO and shutter follow the PYXIS, a few stops darker to protect highlights. Readings stay exact either way."
-            else "You set ISO and shutter. Readings still convert to PYXIS stops.",
+            else "Phone ISO and shutter only change how bright the phone's picture is. The zone colors show what the PYXIS will record, so they don't move. To see the zones shift, change the PYXIS ISO or iris at the top. Black-and-white hatching means the phone is too bright to read that spot: lower the phone ISO.",
             color = Color(0xFF9A9A9A), fontSize = 12.sp, modifier = Modifier.padding(vertical = 4.dp),
         )
         if (!p.matchPyxis) {
-            Label("ISO ${p.iso}")
+            Label("Phone ISO ${p.iso} (picture brightness only)")
             ChipRow(listOf(50, 100, 200, 400, 800, 1600, 3200), p.iso, { "$it" }) { set(p.copy(iso = it)) }
             Label("Shutter ${fmt(p.shutterAngle)}°")
             ChipRow(listOf(45.0, 90.0, 172.8, 180.0, 270.0, 360.0), p.shutterAngle, { fmt(it) + "°" }) { set(p.copy(shutterAngle = it)) }

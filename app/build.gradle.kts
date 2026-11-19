@@ -65,4 +65,7 @@ dependencies {
     implementation("androidx.camera:camera-view:$camerax")
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
+    // On-device face finder for matching stills (model ships in the APK, works offline)
+    implementation("com.google.mlkit:face-detection:16.1.7")
 }
