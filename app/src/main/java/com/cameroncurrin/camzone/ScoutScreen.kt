@@ -139,7 +139,8 @@ fun ScoutScreen(meter: PhoneMeter) {
         Spacer(Modifier.height(8.dp))
 
         if (step == Step.WALK || step == Step.TAG || step == Step.SUBJECT || step == Step.CAMERA) {
-            Box(Modifier.fillMaxWidth().aspectRatio(3f / 4f).background(Color.Black, RoundedCornerShape(10.dp))) {
+            val land = androidx.compose.ui.platform.LocalConfiguration.current.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+            Box((if (land) Modifier.fillMaxWidth(0.6f).aspectRatio(4f / 3f) else Modifier.fillMaxWidth().aspectRatio(3f / 4f)).background(Color.Black, RoundedCornerShape(10.dp))) {
                 AndroidView(
                     modifier = Modifier.matchParentSize(),
                     factory = { c ->

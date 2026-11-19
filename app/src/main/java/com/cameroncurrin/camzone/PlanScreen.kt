@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -112,7 +113,7 @@ fun PlanPanel(session: ScoutSession?, settings: CamSettings) {
 /** Top-down plan: camera at the bottom, subject in the middle, angle 0 = beside camera, + = camera-left. */
 @Composable
 fun TopDownMap(items: List<MapItem>, modifier: Modifier = Modifier, subjects: Int = 1) {
-    Canvas(modifier.fillMaxWidth().aspectRatio(1f).background(Color(0xFF151515), RoundedCornerShape(10.dp))) {
+    Canvas(modifier.widthIn(max = 460.dp).fillMaxWidth().aspectRatio(1f).background(Color(0xFF151515), RoundedCornerShape(10.dp))) {
         val w = size.width
         val h = size.height
         val c = Offset(w / 2, h * 0.5f)

@@ -69,6 +69,20 @@ class PhoneMeter(private val context: Context) {
     private var boundLens: String? = null
     private var minFocusDiopters = 0f
     private var imageCapture: ImageCapture? = null
+    private var previewUse: Preview? = null
+    private var analysisUse: ImageAnalysis? = null
+
+    @Suppress("DEPRECATION")
+    private fun displayRotation(): Int =
+        (context.getSystemService(android.content.Context.WINDOW_SERVICE) as android.view.WindowManager).defaultDisplay.rotation
+
+    /** Call when the screen turns, so the preview, zone map and photos follow it. */
+    fun updateRotation() {
+        val r = displayRotation()
+        previewUse?.targetRotation = r
+        analysisUse?.targetRotation = r
+        imageCapture?.targetRotation = r
+    }
 
     /** When set, the phone holds this exposure (EV100) for a room scan, with a fast shutter. */
     var scanEv: Double? = null
@@ -138,10 +152,14 @@ class PhoneMeter(private val context: Context) {
                 }
             })
 
-            val preview = previewBuilder.build().also { it.setSurfaceProvider(pv.surfaceProvider) }
-            val analysis = analysisBuilder.build().also { it.setAnalyzer(executor) { img -> analyze(img) } }
+            val rot = displayRotation()
+            val preview = previewBuilder.setTargetRotation(rot).build().also { it.setSurfaceProvider(pv.surfaceProvider) }
+            val analysis = analysisBuilder.setTargetRotation(rot).build().also { it.setAnalyzer(executor) { img -> analyze(img) } }
+            previewUse = preview
+            analysisUse = analysis
             val capture = ImageCapture.Builder()
                 .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+                .setTargetRotation(rot)
                 .setResolutionSelector(ResolutionSelector.Builder()
                     .setAspectRatioStrategy(AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY)
                     .setResolutionStrategy(ResolutionStrategy(Size(2048, 1536), ResolutionStrategy.FALLBACK_RULE_CLOSEST_LOWER_THEN_HIGHER))

@@ -7,6 +7,21 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -60,6 +75,11 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        meter.updateRotation()
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         ble.disconnect()
@@ -75,28 +95,49 @@ fun bluetoothPermissions(): Array<String> =
 @Composable
 fun App(meter: PhoneMeter, ble: PyxisBle, rest: PyxisRest) {
     var tab by remember { mutableIntStateOf(0) }
-    Scaffold(
-        containerColor = Color(0xFF111111),
-        topBar = { UpdateBanner() },
-        bottomBar = {
-            NavigationBar(containerColor = Color(0xFF1B1B1B)) {
-                NavigationBarItem(selected = tab == 0, onClick = { tab = 0 },
-                    icon = { Icon(Icons.Filled.Home, null) }, label = { Text("Meter") })
-                NavigationBarItem(selected = tab == 1, onClick = { tab = 1 },
-                    icon = { Icon(Icons.Filled.Place, null) }, label = { Text("Scout") })
-                NavigationBarItem(selected = tab == 2, onClick = { tab = 2 },
-                    icon = { Icon(Icons.Filled.Settings, null) }, label = { Text("PYXIS") })
-                NavigationBarItem(selected = tab == 3, onClick = { tab = 3 },
-                    icon = { Icon(Icons.Filled.Info, null) }, label = { Text("Learn") })
-            }
-        },
-    ) { pad ->
-        Box(Modifier.padding(pad).fillMaxSize().background(Color(0xFF111111))) {
+    var navShown by remember { mutableStateOf(true) }
+    var poke by remember { mutableIntStateOf(0) }
+    // The menu hides itself a few seconds after you last used it
+    LaunchedEffect(navShown, poke) {
+        if (navShown) { delay(3500); navShown = false }
+    }
+    Column(Modifier.fillMaxSize().background(Color(0xFF111111))) {
+        UpdateBanner()
+        Box(Modifier.weight(1f).fillMaxWidth()) {
             when (tab) {
                 0 -> MeterScreen(meter) { linkFor(ble, rest) }
                 1 -> ScoutScreen(meter)
                 2 -> LinkScreen(ble, rest)
                 else -> LearnScreen()
+            }
+            if (!navShown) {
+                // Swipe up (or tap) on the handle to bring the menu back
+                Box(
+                    Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(28.dp)
+                        .pointerInput(Unit) {
+                            detectVerticalDragGestures { _, drag -> if (drag < -6f) navShown = true }
+                        }
+                        .pointerInput(Unit) { detectTapGestures { navShown = true } },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Box(Modifier.width(64.dp).height(5.dp).background(Color(0xAAFFFFFF), RoundedCornerShape(3.dp)))
+                }
+            }
+        }
+        AnimatedVisibility(
+            visible = navShown,
+            enter = slideInVertically(initialOffsetY = { it }),
+            exit = slideOutVertically(targetOffsetY = { it }),
+        ) {
+            NavigationBar(containerColor = Color(0xFF1B1B1B)) {
+                val items = listOf(
+                    Triple("Meter", Icons.Filled.Home, 0), Triple("Scout", Icons.Filled.Place, 1),
+                    Triple("PYXIS", Icons.Filled.Settings, 2), Triple("Learn", Icons.Filled.Info, 3),
+                )
+                items.forEach { (label, icon, i) ->
+                    NavigationBarItem(selected = tab == i, onClick = { tab = i; poke++ },
+                        icon = { Icon(icon, null) }, label = { Text(label) })
+                }
             }
         }
     }

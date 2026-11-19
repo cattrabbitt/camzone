@@ -1,5 +1,9 @@
 package com.cameroncurrin.camzone
 
+import android.content.res.Configuration
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import android.graphics.Bitmap
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Canvas
@@ -87,7 +91,8 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
     // Keep the phone camera in manual, locked to the PYXIS settings or the manual controls
     LaunchedEffect(settings, cal, phone) { meter.applyManual(settings, cal, phone) }
 
-    Column(Modifier.verticalScroll(rememberScrollState()).padding(12.dp)) {
+    val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val settingsStrip: @Composable () -> Unit = {
         // Settings strip
         Row(
             Modifier.fillMaxWidth().background(Color(0xFF1B1B1B), RoundedCornerShape(10.dp))
@@ -107,10 +112,11 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
             }
             TextButton(onClick = { showSettings = true }) { Text("Edit") }
         }
-        Spacer(Modifier.height(10.dp))
 
+    }
+    val previewBox: @Composable (Modifier) -> Unit = { m ->
         // Camera view with zone overlay
-        Box(Modifier.fillMaxWidth().aspectRatio(3f / 4f).background(Color.Black, RoundedCornerShape(10.dp))) {
+        Box(m.background(Color.Black, RoundedCornerShape(10.dp))) {
             AndroidView(
                 modifier = Modifier.matchParentSize(),
                 factory = { ctx ->
@@ -161,6 +167,8 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
                 } else marker(face, Color.White)
             }
         }
+    }
+    val controls: @Composable () -> Unit = {
         Text(
             phoneStatus + if (mode == Mode.ZONES) "" else " · gray view shows what the PYXIS would see",
             color = Color(0xFF8A8A8A), fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp),
@@ -265,6 +273,23 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
             "The phone meters the scene; the PYXIS Map LUT is the final word. Very bright points can read low on the phone.",
             color = Color(0xFF8A8A8A), fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
         )
+    }
+    if (landscape) {
+        Row(Modifier.fillMaxSize().padding(8.dp)) {
+            previewBox(Modifier.fillMaxHeight().aspectRatio(4f / 3f))
+            Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(start = 10.dp)) {
+                settingsStrip()
+                Spacer(Modifier.height(6.dp))
+                controls()
+            }
+        }
+    } else {
+        Column(Modifier.verticalScroll(rememberScrollState()).padding(12.dp)) {
+            settingsStrip()
+            Spacer(Modifier.height(10.dp))
+            previewBox(Modifier.fillMaxWidth().aspectRatio(3f / 4f))
+            controls()
+        }
     }
 
     if (showSettings) SettingsDialog(settings) { showSettings = false }
