@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.input.pointer.pointerInput
@@ -101,8 +102,11 @@ fun App(meter: PhoneMeter, ble: PyxisBle, rest: PyxisRest) {
     LaunchedEffect(navShown, poke) {
         if (navShown) { delay(3500); navShown = false }
     }
+    val full by AppState.fullFeed.collectAsState()
+    if (tab != 0 && full) AppState.fullFeed.value = false
+    LaunchedEffect(full) { if (full) navShown = false }
     Column(Modifier.fillMaxSize().background(Color(0xFF111111))) {
-        UpdateBanner()
+        if (!full) UpdateBanner()
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when (tab) {
                 0 -> MeterScreen(meter) { linkFor(ble, rest) }
@@ -110,7 +114,7 @@ fun App(meter: PhoneMeter, ble: PyxisBle, rest: PyxisRest) {
                 2 -> LinkScreen(ble, rest)
                 else -> LearnScreen()
             }
-            if (!navShown) {
+            if (!navShown && !full) {
                 // Swipe up (or tap) on the handle to bring the menu back
                 Box(
                     Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(28.dp)

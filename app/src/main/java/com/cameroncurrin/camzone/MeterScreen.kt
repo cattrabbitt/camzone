@@ -1,5 +1,7 @@
 package com.cameroncurrin.camzone
 
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import android.content.res.Configuration
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.foundation.layout.fillMaxSize
@@ -83,6 +85,18 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
     var showCal by remember { mutableStateOf(false) }
     var picker by remember { mutableStateOf<PyxisParam?>(null) }
     var panel by remember { mutableStateOf<String?>(null) }
+    val full by AppState.fullFeed.collectAsState()
+    // Full screen also hides the phone's status and navigation bars
+    val view = androidx.compose.ui.platform.LocalView.current
+    DisposableEffect(full) {
+        val win = (view.context as? android.app.Activity)?.window
+        if (win != null) {
+            val c = androidx.core.view.WindowCompat.getInsetsController(win, view)
+            c.systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            if (full) c.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars()) else c.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+        }
+        onDispose { if (win != null) androidx.core.view.WindowCompat.getInsetsController(win, view).show(androidx.core.view.WindowInsetsCompat.Type.systemBars()) }
+    }
     val scope = rememberCoroutineScope()
     val lifecycle = LocalLifecycleOwner.current
     val phoneStatus by meter.status.collectAsState()
@@ -119,7 +133,15 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
             val f = frame
             val bmp = remember(f, settings, cal, mode, tools) { f?.let { renderOverlay(it, settings, cal, mode == Mode.ZONES, tools) } }
             Canvas(
-                Modifier.matchParentSize().pointerInput(mode) {
+                Modifier.matchParentSize()
+                    .pointerInput(Unit) {
+                        // Swipe up on the picture for full screen, down to come back
+                        detectVerticalDragGestures { _, d ->
+                            if (d < -12f) AppState.fullFeed.value = true
+                            else if (d > 12f) { if (panel != null) panel = null else AppState.fullFeed.value = false }
+                        }
+                    }
+                    .pointerInput(mode) {
                     detectTapGestures { pos ->
                         val fr = AppState.frame.value ?: return@detectTapGestures
                         val x = pos.x / size.width
@@ -170,9 +192,10 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
                 listOf("Phone", "Tools", "View").forEach { n ->
                     FeedButton(n, panel == n) { panel = if (panel == n) null else n }
                 }
+                FeedButton(if (full) "Exit" else "Full", full) { AppState.fullFeed.value = !full }
             }
             if (panel != null) {
-                FeedPanel(Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(0.5f).verticalScroll(rememberScrollState())) {
+                FeedPanel(Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(0.5f), onDismiss = { panel = null }) {
                     when (panel) {
                         "Phone" -> PhoneControlsBody(lenses)
                         "Tools" -> ToolsRow()
@@ -191,7 +214,7 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
                             }
                         }
                     }
-                    Text("Tap ${panel} again to close", color = Color(0xFF8A8A8A), fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp))
+                    Text("Swipe the bar down to close", color = Color(0xFF8A8A8A), fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp))
                 }
             }
         }
@@ -283,7 +306,11 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
             color = Color(0xFF8A8A8A), fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
         )
     }
-    if (landscape) {
+    if (full) {
+        Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
+            previewBox(if (landscape) Modifier.fillMaxHeight().aspectRatio(4f / 3f) else Modifier.fillMaxWidth().aspectRatio(3f / 4f))
+        }
+    } else if (landscape) {
         Row(Modifier.fillMaxSize().padding(8.dp)) {
             previewBox(Modifier.fillMaxHeight().aspectRatio(4f / 3f))
             Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(start = 10.dp)) {

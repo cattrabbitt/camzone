@@ -11,6 +11,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -175,10 +182,20 @@ fun FeedButton(label: String, on: Boolean, onClick: () -> Unit) {
     }
 }
 
-/** A see-through panel over the bottom of the feed, so the picture stays visible while you change things. */
+/** A see-through panel over the bottom of the feed. Swipe its handle down (or tap it) to put it away. */
 @Composable
-fun FeedPanel(modifier: Modifier, content: @Composable () -> Unit) {
-    Column(modifier.background(Color(0xCC000000), RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)).padding(10.dp)) {
-        content()
+fun FeedPanel(modifier: Modifier, onDismiss: () -> Unit, content: @Composable () -> Unit) {
+    Column(modifier.background(Color(0xCC000000), RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))) {
+        Box(
+            Modifier.fillMaxWidth().height(30.dp)
+                .pointerInput(Unit) { detectVerticalDragGestures { _, d -> if (d > 8f) onDismiss() } }
+                .pointerInput(Unit) { detectTapGestures { onDismiss() } },
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(Modifier.width(56.dp).height(5.dp).background(Color(0xAAFFFFFF), RoundedCornerShape(3.dp)))
+        }
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = 10.dp, end = 10.dp, bottom = 10.dp)) {
+            content()
+        }
     }
 }

@@ -42,6 +42,8 @@ object AppState {
     val applyStatus = MutableStateFlow<Map<String, ApplyStatus>>(emptyMap())
     val phone = MutableStateFlow(PhoneControls())
     val tools = MutableStateFlow(Tools())
+    /** Camera feed full screen: menus and strips hidden. */
+    val fullFeed = MutableStateFlow(false)
     val kit = MutableStateFlow(Gear.values().toSet())
     val projectType = MutableStateFlow(ProjectType.NARRATIVE)
     val mood = MutableStateFlow(Mood.NATURAL)
