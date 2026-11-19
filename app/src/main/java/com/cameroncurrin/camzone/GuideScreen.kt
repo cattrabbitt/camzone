@@ -59,6 +59,15 @@ private val steps = listOf(
         "Contrast mode: tap the key side, then the fill side, to read the ratio.",
         "Check the PYXIS Map LUT: face green, nothing you care about in orange or red. Switch to Guard and roll.",
     ),
+    "Scout a location before you light (about 3 minutes)" to listOf(
+        "Scout tab > type the location > Full scout. Use Quick read if there's no time to walk.",
+        "Lay a tape measure open to 1 meter on the floor so the PC scan knows the real size.",
+        "Tap Start walking. Walk slowly along the walls, phone at chest height pointing across the room, then a second lap at eye level. Photos take themselves; slow down if it says so. Aim for 120 or more.",
+        "Tag the light sources: point the circle at each window, lamp, ceiling light or bright wall and tap its name. Each tag records brightness and an estimated color temperature.",
+        "Mark the subject: stand where the actor will be, aim at a gray card at face height, tap Mark subject.",
+        "Read the room: every source against the subject, plus what to do (where to put the actor, ND on windows, gels for mixed color).",
+        "Send to PC zips everything for the Lighting Planner. Color temperature is an estimate from the phone; confirm on the PYXIS.",
+    ),
     "Phone camera and monitoring tools" to listOf(
         "The phone camera always runs in manual: no auto exposure, so the colors only change when the light or your PYXIS settings change.",
         "Match PYXIS (default): the phone's ISO and shutter follow the PYXIS, a few stops darker so its smaller sensor keeps the highlights. Manual: set ISO, shutter angle and frame rate yourself.",

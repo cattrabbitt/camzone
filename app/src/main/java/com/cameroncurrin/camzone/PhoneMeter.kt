@@ -17,6 +17,11 @@ import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.ImageCapture
+import androidx.camera.core.ImageCaptureException
+import androidx.camera.core.resolutionselector.ResolutionStrategy
+import android.util.Size
+import java.io.File
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.core.resolutionselector.AspectRatioStrategy
@@ -63,6 +68,11 @@ class PhoneMeter(private val context: Context) {
     private var previewView: PreviewView? = null
     private var boundLens: String? = null
     private var minFocusDiopters = 0f
+    private var imageCapture: ImageCapture? = null
+
+    /** When set, the phone holds this exposure (EV100) for a room scan, with a fast shutter. */
+    var scanEv: Double? = null
+        private set
 
     /** Back lenses on this phone: camera id to a readable label. */
     val lenses = MutableStateFlow<List<Pair<String, String>>>(emptyList())
@@ -130,8 +140,16 @@ class PhoneMeter(private val context: Context) {
 
             val preview = previewBuilder.build().also { it.setSurfaceProvider(pv.surfaceProvider) }
             val analysis = analysisBuilder.build().also { it.setAnalyzer(executor) { img -> analyze(img) } }
+            val capture = ImageCapture.Builder()
+                .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+                .setResolutionSelector(ResolutionSelector.Builder()
+                    .setAspectRatioStrategy(AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY)
+                    .setResolutionStrategy(ResolutionStrategy(Size(2048, 1536), ResolutionStrategy.FALLBACK_RULE_CLOSEST_LOWER_THEN_HIGHER))
+                    .build())
+                .build()
+            imageCapture = capture
             provider.unbindAll()
-            val cam = provider.bindToLifecycle(owner, camSelector, preview, analysis)
+            val cam = provider.bindToLifecycle(owner, camSelector, preview, analysis, capture)
             camera = cam
             readLimits(Camera2CameraInfo.from(cam.cameraInfo))
             applyManual(AppState.settings.value, AppState.calibration.value, AppState.phone.value)
@@ -175,14 +193,16 @@ class PhoneMeter(private val context: Context) {
         if (pc.lensId != boundLens) { rebind(); return }
         val cam = camera ?: return
         // EV the phone must be set to: PYXIS middle gray lands at 0.18 * 2^-HEADROOM
-        val evSet = Expo.grayEv(s) - calibration + HEADROOM
+        val scan = scanEv
+        val evSet = scan ?: (Expo.grayEv(s) - calibration + HEADROOM)
         val factor = aperture * aperture / 2.0.pow(evSet) // = t * ISO / 100
-        // Prefer a clean ISO, then adjust the shutter; cap the shutter at 1/30 so the preview stays live
-        val maxT = minOf(maxExposureNs / 1e9, 1.0 / 30)
+        // Prefer a clean ISO, then adjust the shutter; cap the shutter at 1/30 so the preview stays live,
+        // or 1/125 during a scan so walking photos stay sharp
+        val maxT = minOf(maxExposureNs / 1e9, if (scan != null) 1.0 / 125 else 1.0 / 30)
         val minT = minExposureNs / 1e9
         var iso: Double
         var t: Double
-        if (pc.matchPyxis) {
+        if (pc.matchPyxis || scan != null) {
             iso = minIso.toDouble()
             t = factor * 100 / iso
             if (t > maxT) { t = maxT; iso = (factor * 100 / t).coerceIn(minIso.toDouble(), maxIso.toDouble()) }
@@ -223,6 +243,33 @@ class PhoneMeter(private val context: Context) {
             }
         }
         Camera2CameraControl.from(cam.cameraControl).setCaptureRequestOptions(b.build())
+    }
+
+    /** Locks one exposure for a room scan: the brightest 2% of the view sits just under the phone's clip. */
+    fun lockForScan() {
+        val f = AppState.frame.value ?: return
+        val sorted = f.ev.sorted()
+        val p98 = sorted[(sorted.size * 0.98).toInt().coerceAtMost(sorted.size - 1)].toDouble()
+        scanEv = p98 - Expo.log2(0.8 / 0.18)
+        applyManual(AppState.settings.value, AppState.calibration.value, AppState.phone.value)
+    }
+
+    fun unlockScan() {
+        scanEv = null
+        applyManual(AppState.settings.value, AppState.calibration.value, AppState.phone.value)
+    }
+
+    fun takePhoto(file: File, onDone: (Boolean) -> Unit) {
+        val cap = imageCapture ?: return onDone(false)
+        cap.takePicture(ImageCapture.OutputFileOptions.Builder(file).build(), executor,
+            object : ImageCapture.OnImageSavedCallback {
+                override fun onImageSaved(r: ImageCapture.OutputFileResults) {
+                    ContextCompat.getMainExecutor(context).execute { onDone(true) }
+                }
+                override fun onError(e: ImageCaptureException) {
+                    ContextCompat.getMainExecutor(context).execute { onDone(false) }
+                }
+            })
     }
 
     private var lastPublish = 0L

@@ -21,6 +21,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -81,8 +82,10 @@ fun App(meter: PhoneMeter, ble: PyxisBle, rest: PyxisRest) {
                 NavigationBarItem(selected = tab == 0, onClick = { tab = 0 },
                     icon = { Icon(Icons.Filled.Home, null) }, label = { Text("Meter") })
                 NavigationBarItem(selected = tab == 1, onClick = { tab = 1 },
-                    icon = { Icon(Icons.Filled.Settings, null) }, label = { Text("PYXIS") })
+                    icon = { Icon(Icons.Filled.Place, null) }, label = { Text("Scout") })
                 NavigationBarItem(selected = tab == 2, onClick = { tab = 2 },
+                    icon = { Icon(Icons.Filled.Settings, null) }, label = { Text("PYXIS") })
+                NavigationBarItem(selected = tab == 3, onClick = { tab = 3 },
                     icon = { Icon(Icons.Filled.Info, null) }, label = { Text("Guide") })
             }
         },
@@ -90,7 +93,8 @@ fun App(meter: PhoneMeter, ble: PyxisBle, rest: PyxisRest) {
         Box(Modifier.padding(pad).fillMaxSize().background(Color(0xFF111111))) {
             when (tab) {
                 0 -> MeterScreen(meter) { linkFor(ble, rest) }
-                1 -> LinkScreen(ble, rest)
+                1 -> ScoutScreen(meter)
+                2 -> LinkScreen(ble, rest)
                 else -> GuideScreen()
             }
         }
