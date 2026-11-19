@@ -30,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -78,6 +79,10 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
     var showCal by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val lifecycle = LocalLifecycleOwner.current
+    val phoneStatus by meter.status.collectAsState()
+
+    // Keep the phone's manual exposure locked to the PYXIS settings
+    LaunchedEffect(settings, cal) { meter.applyManual(settings, cal) }
 
     Column(Modifier.verticalScroll(rememberScrollState()).padding(12.dp)) {
         // Settings strip
@@ -140,7 +145,7 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
                         dstOffset = IntOffset.Zero,
                         dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt()),
                         alpha = 0.9f,
-                        filterQuality = FilterQuality.None,
+                        filterQuality = FilterQuality.Low,
                     )
                 }
                 fun marker(s: Spot?, c: Color) {
@@ -152,7 +157,11 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
                 } else marker(face, Color.White)
             }
         }
-        Spacer(Modifier.height(10.dp))
+        Text(
+            phoneStatus + " · picture is darker on purpose, to protect highlights",
+            color = Color(0xFF8A8A8A), fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp),
+        )
+        Spacer(Modifier.height(8.dp))
 
         // Mode chips
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
