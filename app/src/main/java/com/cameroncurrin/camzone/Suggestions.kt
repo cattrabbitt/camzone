@@ -48,7 +48,7 @@ object Advisor {
             val delta = Expo.stopsBetween(settings.tStop, need) // + = too bright, close down
             val zone = Expo.zone(now)
 
-            if (abs(now - target) < 1.0 / 6.0 + 0.01) {
+            if (abs(now - target) < 0.2) {
                 out += Suggestion("iris", "Face is on target", "${Expo.formatStops(now)} stops, ${zone.label.lowercase()}. Ready to roll.", good = true)
             } else if (delta > 0) {
                 // Too bright
