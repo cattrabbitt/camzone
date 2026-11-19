@@ -35,6 +35,7 @@ data class ScoutTag(
     val kelvin: Int?,        // estimate, from the tag photo
     val photo: String,       // file name inside photos/
     val orientation: Orientation?,
+    val distM: Float = 2.5f, // rough distance from the subject spot
 )
 
 data class ScoutPhoto(val file: String, val orientation: Orientation?, val timeMs: Long)
@@ -47,6 +48,8 @@ class ScoutSession(val name: String, val dir: File) {
     var subjectEv: Double? = null
     var subjectPhoto: String? = null
     var scaleNote: String = ""
+    /** Compass bearing from the subject spot toward the camera position. Tags are measured from the subject spot too. */
+    var cameraAz: Float? = null
 
     val photoDir: File get() = File(dir, "photos").apply { mkdirs() }
 
@@ -68,6 +71,7 @@ class ScoutSession(val name: String, val dir: File) {
                 .put("middleGrayEv100", Expo.grayEv(settings)))
             .put("phoneCalibrationStops", calibration)
             .put("scaleNote", scaleNote)
+            .put("cameraAzimuthFromSubject", cameraAz ?: JSONObject.NULL)
             .put("subject", if (subjectEv == null) JSONObject.NULL else JSONObject()
                 .put("ev100", subjectEv)
                 .put("stopsFromPyxisGray", Expo.stopsAt(subjectEv!!, settings))
@@ -84,7 +88,8 @@ class ScoutSession(val name: String, val dir: File) {
                         .put("stopsFromPyxisGray", Expo.stopsAt(t.ev, settings))
                         .put("kelvin", t.kelvin ?: JSONObject.NULL)
                         .put("photo", t.photo)
-                        .put("orientation", o(t.orientation) ?: JSONObject.NULL))
+                        .put("orientation", o(t.orientation) ?: JSONObject.NULL)
+                        .put("distanceFromSubjectM", t.distM))
                 }
             })
     }
@@ -208,7 +213,11 @@ class OrientationTracker(ctx: Context) : SensorEventListener {
         SensorManager.getRotationMatrixFromVector(m, e.values)
         val o = FloatArray(3)
         SensorManager.getOrientation(m, o)
-        orientation.value = Orientation(Math.toDegrees(o[0].toDouble()).toFloat(), Math.toDegrees(o[1].toDouble()).toFloat(), Math.toDegrees(o[2].toDouble()).toFloat())
+        // Heading of the back camera's view (device -Z in world east/north), which stays stable when the phone is held upright.
+        val east = -m[2]; val north = -m[5]
+        val heading = if (east * east + north * north > 0.04f) Math.toDegrees(kotlin.math.atan2(east, north).toDouble()).toFloat()
+            else Math.toDegrees(o[0].toDouble()).toFloat()
+        orientation.value = Orientation(heading, Math.toDegrees(o[1].toDouble()).toFloat(), Math.toDegrees(o[2].toDouble()).toFloat())
         SensorManager.getQuaternionFromVector(q, e.values)
         val cur = q.copyOf()
         val prev = lastQ

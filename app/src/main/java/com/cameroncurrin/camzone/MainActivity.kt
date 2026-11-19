@@ -86,7 +86,7 @@ fun App(meter: PhoneMeter, ble: PyxisBle, rest: PyxisRest) {
                 NavigationBarItem(selected = tab == 2, onClick = { tab = 2 },
                     icon = { Icon(Icons.Filled.Settings, null) }, label = { Text("PYXIS") })
                 NavigationBarItem(selected = tab == 3, onClick = { tab = 3 },
-                    icon = { Icon(Icons.Filled.Info, null) }, label = { Text("Guide") })
+                    icon = { Icon(Icons.Filled.Info, null) }, label = { Text("Learn") })
             }
         },
     ) { pad ->
@@ -95,7 +95,7 @@ fun App(meter: PhoneMeter, ble: PyxisBle, rest: PyxisRest) {
                 0 -> MeterScreen(meter) { linkFor(ble, rest) }
                 1 -> ScoutScreen(meter)
                 2 -> LinkScreen(ble, rest)
-                else -> GuideScreen()
+                else -> LearnScreen()
             }
         }
     }

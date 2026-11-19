@@ -42,6 +42,9 @@ object AppState {
     val applyStatus = MutableStateFlow<Map<String, ApplyStatus>>(emptyMap())
     val phone = MutableStateFlow(PhoneControls())
     val tools = MutableStateFlow(Tools())
+    val kit = MutableStateFlow(Gear.values().toSet())
+    val projectType = MutableStateFlow(ProjectType.NARRATIVE)
+    val mood = MutableStateFlow(Mood.NATURAL)
 
     private var prefs: SharedPreferences? = null
 
@@ -52,6 +55,11 @@ object AppState {
         widestT.value = p.getFloat("widest", 1.8f).toDouble()
         narrowestT.value = p.getFloat("narrowest", 22f).toDouble()
         look.value = Look.values()[p.getInt("look", 0).coerceIn(0, Look.values().size - 1)]
+        p.getString("kit", null)?.let { k ->
+            kit.value = k.split(',').mapNotNull { n -> Gear.values().firstOrNull { it.name == n } }.toSet()
+        }
+        projectType.value = ProjectType.values()[p.getInt("ptype", 0).coerceIn(0, ProjectType.values().size - 1)]
+        mood.value = Mood.values()[p.getInt("mood", 0).coerceIn(0, Mood.values().size - 1)]
         settings.value = CamSettings(
             iso = p.getInt("iso", 400),
             shutterAngle = p.getFloat("angle", 180f).toDouble(),
@@ -74,6 +82,9 @@ object AppState {
             .putFloat("fps", s.fps.toFloat())
             .putFloat("t", s.tStop.toFloat())
             .putFloat("nd", s.nd.toFloat())
+            .putString("kit", kit.value.joinToString(",") { it.name })
+            .putInt("ptype", projectType.value.ordinal)
+            .putInt("mood", mood.value.ordinal)
             .apply()
     }
 

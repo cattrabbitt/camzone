@@ -50,7 +50,7 @@ import java.io.File
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-private enum class Step { START, WALK, TAG, SUBJECT, SUMMARY }
+private enum class Step { START, WALK, SUBJECT, TAG, CAMERA, SUMMARY, PLAN }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -76,6 +76,7 @@ fun ScoutScreen(meter: PhoneMeter) {
     var version by remember { mutableIntStateOf(0) } // bumps when the session's lists change
     var lastQ by remember { mutableStateOf<FloatArray?>(null) }
     var msg by remember { mutableStateOf("") }
+    var dist by remember { mutableStateOf(2.5f) }
 
     // Auto-shoot during the walkthrough: a photo every ~8 degrees of turn, only while the phone is steady
     LaunchedEffect(walking) {
@@ -116,7 +117,7 @@ fun ScoutScreen(meter: PhoneMeter) {
             } else {
                 scope.launch {
                     val k = withContext(Dispatchers.IO) { Scout.estimateKelvin(f, AppState.phone.value.wb) }
-                    s.tags += ScoutTag(type, ev, k, f.name, or)
+                    s.tags += ScoutTag(type, ev, k, f.name, or, dist)
                     version++
                 }
             }
@@ -127,15 +128,17 @@ fun ScoutScreen(meter: PhoneMeter) {
     Column(Modifier.verticalScroll(rememberScrollState()).padding(12.dp)) {
         val stepTitle = when (step) {
             Step.START -> "Scout a location"
-            Step.WALK -> "1 of 3 · Walk the room"
+            Step.WALK -> "Walk the room"
+            Step.SUBJECT -> "1 of 3 · Mark the subject spot"
             Step.TAG -> "2 of 3 · Tag the light sources"
-            Step.SUBJECT -> "3 of 3 · Mark the subject spot"
+            Step.CAMERA -> "3 of 3 · Point at the camera spot"
             Step.SUMMARY -> "Room read"
+            Step.PLAN -> "Lighting plan"
         }
         Text(stepTitle, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
         Spacer(Modifier.height(8.dp))
 
-        if (step == Step.WALK || step == Step.TAG || step == Step.SUBJECT) {
+        if (step == Step.WALK || step == Step.TAG || step == Step.SUBJECT || step == Step.CAMERA) {
             Box(Modifier.fillMaxWidth().aspectRatio(3f / 4f).background(Color.Black, RoundedCornerShape(10.dp))) {
                 AndroidView(
                     modifier = Modifier.matchParentSize(),
@@ -159,16 +162,18 @@ fun ScoutScreen(meter: PhoneMeter) {
         when (step) {
             Step.START -> {
                 Text(
-                    "About 3 minutes. Walk the room for the PC scan, tag the windows and lamps, mark where the actor will stand. " +
-                        "You get a room read with advice right away, no internet needed.",
+                    "About 2 minutes. Stand where the actor will be, read the light there, point at each window and lamp, then point at where the camera goes. " +
+                        "You get a room read, a top-down map and lighting setups for your kit and mood right away, no internet needed. " +
+                        "Add the walk if you also want the 3D scan on the PC.",
                     color = Color(0xFFCCCCCC), fontSize = 14.sp,
                 )
                 OutlinedTextField(name, { name = it }, label = { Text("Location or scene name") }, singleLine = true,
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 10.dp)) {
-                    Button(onClick = { Scout.start(ctx, name); step = Step.WALK }) { Text("Full scout") }
-                    OutlinedButton(onClick = { Scout.start(ctx, name); step = Step.TAG }) { Text("Quick read (skip walk)") }
+                    Button(onClick = { Scout.start(ctx, name); step = Step.SUBJECT }) { Text("Quick read") }
+                    OutlinedButton(onClick = { Scout.start(ctx, name); step = Step.WALK }) { Text("With 3D walk") }
                 }
+                OutlinedButton(onClick = { step = Step.PLAN }, modifier = Modifier.padding(top = 8.dp)) { Text("Plan without a scout") }
                 if (session != null) {
                     TextLink("Open the last scout: ${session!!.name}") { step = Step.SUMMARY }
                 }
@@ -195,15 +200,20 @@ fun ScoutScreen(meter: PhoneMeter) {
                         walking = false; meter.unlockScan()
                         s?.scaleNote = "1 m tape measure on the floor"
                         s?.save(settings, cal)
-                        step = Step.TAG
+                        step = Step.SUBJECT
                     }) { Text("Done walking") }
                 }
             }
 
             Step.TAG -> {
                 val s = session
-                Text("Point the circle at each light source and tap what it is: windows, lamps, ceiling lights, bright walls.",
+                Text("Stay on the subject spot. Point the circle at each light source, pick how far it is, and tap what it is.",
                     color = Color(0xFFCCCCCC), fontSize = 14.sp)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
+                    listOf("Near · 1 m" to 1f, "Mid · 2.5 m" to 2.5f, "Far · 4 m+" to 4.5f).forEach { (l, d) ->
+                        Chip(l, dist == d) { dist = d }
+                    }
+                }
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
                     TagType.values().forEach { t ->
                         Button(onClick = { if (!busy) tagNow(t) }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2A2A2A))) {
@@ -212,7 +222,7 @@ fun ScoutScreen(meter: PhoneMeter) {
                     }
                 }
                 if (s != null && version >= 0) TagList(s, settings)
-                Button(onClick = { step = Step.SUBJECT }, modifier = Modifier.padding(top = 10.dp)) { Text("Next: subject spot") }
+                Button(onClick = { step = Step.CAMERA }, modifier = Modifier.padding(top = 10.dp)) { Text("Next: camera spot") }
             }
 
             Step.SUBJECT -> {
@@ -220,8 +230,8 @@ fun ScoutScreen(meter: PhoneMeter) {
                     color = Color(0xFFCCCCCC), fontSize = 14.sp)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
                     Button(onClick = { if (!busy) tagNow(null) }) { Text("Mark subject") }
-                    OutlinedButton(onClick = { session?.save(settings, cal); step = Step.SUMMARY }) {
-                        Text(if (session?.subjectEv != null) "See room read" else "Skip")
+                    OutlinedButton(onClick = { session?.save(settings, cal); step = Step.TAG }) {
+                        Text(if (session?.subjectEv != null) "Next: light sources" else "Skip")
                     }
                 }
                 session?.subjectEv?.let {
@@ -230,15 +240,37 @@ fun ScoutScreen(meter: PhoneMeter) {
                 }
             }
 
+            Step.CAMERA -> {
+                Text("Still on the subject spot, turn and point the phone at where the camera will stand. Tap Mark camera. This lets the map put every light camera-left or camera-right.",
+                    color = Color(0xFFCCCCCC), fontSize = 14.sp)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
+                    Button(onClick = {
+                        val az = tracker.orientation.value?.azimuth
+                        if (az == null) msg = "No compass reading. Move the phone in a figure eight and try again."
+                        else { session?.cameraAz = az; session?.save(settings, cal); msg = ""; step = Step.SUMMARY }
+                    }) { Text("Mark camera") }
+                    OutlinedButton(onClick = { step = Step.SUMMARY }) { Text("Skip") }
+                }
+                Text("Indoors the compass can drift near metal and speakers. If the map looks wrong, mark it again.",
+                    color = Color(0xFF8A8A8A), fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
+            }
+
+            Step.PLAN -> {
+                PlanPanel(session, settings)
+                OutlinedButton(onClick = { step = if (session != null) Step.SUMMARY else Step.START }, modifier = Modifier.padding(top = 8.dp)) { Text("Back") }
+            }
+
             Step.SUMMARY -> {
                 val s = session
                 if (s == null) {
                     step = Step.START
                 } else {
                     if (version >= 0) RoomRead(s, settings, phone)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 10.dp)) {
+                    Button(onClick = { step = Step.PLAN }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp)) { Text("Plan the lighting") }
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 10.dp)) {
                         Button(onClick = { s.save(settings, cal); Scout.share(ctx, s) }) { Text("Send to PC") }
                         OutlinedButton(onClick = { step = Step.TAG }) { Text("Add tags") }
+                        OutlinedButton(onClick = { step = Step.CAMERA }) { Text("Camera spot") }
                         OutlinedButton(onClick = { step = Step.START }) { Text("New scout") }
                     }
                     Text(
@@ -251,6 +283,15 @@ fun ScoutScreen(meter: PhoneMeter) {
         if (msg.isNotEmpty()) Text(msg, color = Color(0xFFFFB46B), modifier = Modifier.padding(top = 6.dp))
         Spacer(Modifier.height(24.dp))
     }
+}
+
+@Composable
+fun Chip(label: String, on: Boolean, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        colors = ButtonDefaults.buttonColors(containerColor = if (on) Color(0xFF29B83D) else Color(0xFF2A2A2A)),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+    ) { Text(label, color = if (on) Color.Black else Color.White, fontSize = 13.sp) }
 }
 
 @Composable

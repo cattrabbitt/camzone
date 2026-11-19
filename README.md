@@ -48,3 +48,11 @@ python3 preview.py   # writes both .cube files and a preview image
 python3 legend.py
 ```
 Edit `CLIP_STOPS` in `tools/build_luts.py` to move the clip warning.
+
+## Learn tab
+
+Beginner lessons (exposure, stops, zebras, foot-candles, rule of thirds) and lighting techniques (three-point, Rembrandt, loop, butterfly, split, short/broad, window, book light, cross key, rim, negative fill, low-key, practicals), each with a top-down diagram and the gear from Cam's kit that builds it. The app guide moved here too.
+
+## Plan (Scout tab)
+
+Pick the gear you brought, the project type and the mood. A Quick read marks the subject spot first, tags each window and lamp from there (with a rough distance) and then the camera direction, so the top-down map can place every source camera-left or camera-right with its stops and Kelvin. The planner ranks setups for that kit, project, mood and room, places each light on the map, and links the low-budget and commercial sources each setup is based on. "Plan without a scout" works with no room data.
