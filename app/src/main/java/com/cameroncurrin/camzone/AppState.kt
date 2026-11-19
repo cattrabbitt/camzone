@@ -6,7 +6,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 
 /** One analyzed phone-camera frame: scene EV per grid cell, upright. */
-class ZoneFrame(val width: Int, val height: Int, val ev: FloatArray, val phoneClipped: BooleanArray)
+/** [exposureEv]: the scene EV the phone rendered as middle gray for this frame (its own ISO, shutter and aperture). */
+class ZoneFrame(val width: Int, val height: Int, val ev: FloatArray, val phoneClipped: BooleanArray, val exposureEv: Double = 0.0)
 
 /** A metered point: scene EV (independent of PYXIS settings), and where it was tapped (0..1). */
 data class Spot(val ev: Double, val x: Float, val y: Float)

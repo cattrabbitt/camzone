@@ -199,3 +199,85 @@ fun FeedPanel(modifier: Modifier, onDismiss: () -> Unit, content: @Composable ()
         }
     }
 }
+
+
+/** Phone mode strip: the phone's own ISO, shutter and frame rate. Its aperture is fixed. */
+@Composable
+fun PhoneStrip(p: PhoneControls, aperture: Double, onPick: (PyxisParam) -> Unit, onConnect: (() -> Unit)?) {
+    Column(Modifier.fillMaxWidth().background(Color(0xFF1B1B1B), RoundedCornerShape(10.dp)).padding(horizontal = 6.dp, vertical = 6.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Cell("Phone ISO", "${p.iso}") { onPick(PyxisParam.ISO) }
+            Cell("Shutter", fmt(p.shutterAngle) + "°") { onPick(PyxisParam.SHUTTER) }
+            Cell("FPS", fmt(p.fps)) { onPick(PyxisParam.FPS) }
+            Cell("Lens", "f/" + "%.1f".format(aperture)) { }
+        }
+        Text("Phone mode: colors show the phone's own picture. Connect the PYXIS (PYXIS tab) to see the camera's.",
+            color = Color(0xFF9A9A9A), fontSize = 12.sp, modifier = Modifier.padding(start = 6.dp, top = 4.dp))
+    }
+}
+
+private val phoneIso = listOf(50, 64, 80, 100, 125, 160, 200, 250, 320, 400, 500, 640, 800, 1000, 1250, 1600, 2000, 2500, 3200)
+
+/** Preset popup with a slider for the phone's own settings. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun PhonePicker(param: PyxisParam, p: PhoneControls, onClose: () -> Unit) {
+    fun commit(n: PhoneControls) { AppState.phone.value = n.copy(matchPyxis = false) }
+    val options: List<Pair<String, PhoneControls>> = when (param) {
+        PyxisParam.ISO -> phoneIso.map { "$it" to p.copy(iso = it) }
+        PyxisParam.SHUTTER -> shutterPresets.map { fmt(it) + "°" to p.copy(shutterAngle = it) }
+        else -> fpsPresets.map { fmt(it) to p.copy(fps = it) }
+    }
+    val cur = options.indexOfFirst { it.second.copy(matchPyxis = p.matchPyxis) == p }.let { i ->
+        if (i >= 0) i else when (param) {
+            PyxisParam.ISO -> options.indices.minByOrNull { abs(options[it].second.iso - p.iso) } ?: 0
+            PyxisParam.SHUTTER -> options.indices.minByOrNull { abs(options[it].second.shutterAngle - p.shutterAngle) } ?: 0
+            else -> options.indices.minByOrNull { abs(options[it].second.fps - p.fps) } ?: 0
+        }
+    }
+    var idx by remember { mutableFloatStateOf(cur.toFloat()) }
+    Dialog(onDismissRequest = onClose) {
+        Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF1B1B1B))) {
+            Column(Modifier.padding(16.dp)) {
+                Text("Phone " + param.label, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                val i = idx.roundToInt().coerceIn(0, options.size - 1)
+                Text(options[i].first, color = Color(0xFF7BE38C), fontWeight = FontWeight.Bold, fontSize = 30.sp, modifier = Modifier.padding(vertical = 4.dp))
+                Slider(
+                    value = idx, onValueChange = { idx = it; commit(options[it.roundToInt().coerceIn(0, options.size - 1)].second) },
+                    valueRange = 0f..(options.size - 1).coerceAtLeast(1).toFloat(), steps = (options.size - 2).coerceAtLeast(0),
+                )
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    options.forEachIndexed { j, (label, n) -> FilterChip(j == i, { idx = j.toFloat(); commit(n) }, { Text(label, fontSize = 13.sp) }) }
+                }
+                Text(
+                    when (param) {
+                        PyxisParam.ISO -> "Higher ISO = brighter picture = colors move toward yellow, orange and red. Lower = toward blue."
+                        PyxisParam.SHUTTER -> "A wider angle is a longer exposure: brighter. 180° is normal."
+                        else -> "Higher frame rate is a shorter exposure at the same angle: darker."
+                    },
+                    color = Color(0xFF9A9A9A), fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp),
+                )
+                Button(onClick = onClose, modifier = Modifier.align(Alignment.End).padding(top = 8.dp)) { Text("Done") }
+            }
+        }
+    }
+}
+
+/** Phone mode advice: where the face sits in the phone's picture and the phone ISO that puts it on target. */
+fun phoneAdvice(face: Spot?, vs: CamSettings, look: Look): List<Suggestion> {
+    if (face == null) return listOf(Suggestion("start", "Tap the face to meter it", "Switch to Spot (View button on the picture), then tap your subject's face."))
+    val now = Expo.stopsAt(face.ev, vs)
+    val target = AppState.matchTarget.value ?: look.target
+    val off = now - target
+    if (abs(off) < 1.0 / 6.0) return listOf(Suggestion("ok", "Face on target", "The face reads ${Expo.formatStops(now)} in the phone's picture.", good = true))
+    val want = vs.iso / 2.0.pow(off)
+    val iso = phoneIso.minByOrNull { abs(Expo.log2(it / want)) } ?: vs.iso
+    val reachable = abs(Expo.log2(iso / want)) < 0.2
+    return listOf(Suggestion(
+        "phoneiso",
+        if (off > 0) "Face is ${Expo.formatStops(off).removePrefix("+")} stops too bright" else "Face is ${Expo.formatStops(-off).removePrefix("+")} stops too dark",
+        "Face reads ${Expo.formatStops(now)}, target ${Expo.formatStops(target)}. " +
+            (if (reachable) "Phone ISO $iso puts it on target." else "Phone ISO $iso gets as close as the phone can; change the light for the rest."),
+        action = if (iso != vs.iso) Action.SetPhoneIso(iso) else null,
+    ))
+}

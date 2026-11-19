@@ -56,7 +56,8 @@ fun renderOverlay(f: ZoneFrame, s: CamSettings, cal: Double, zones: Boolean, too
             if (tools.zebra && st >= tools.zebraAt && ((x + y) / 3) % 2 == 0) c = 0xFFFFFFFF.toInt()
             // The phone itself clipped here, so the true brightness is unknown (at least this bright).
             // Black and white diagonal hatch: lower the phone ISO or use Match PYXIS to read it.
-            if (f.phoneClipped[i] && st < Expo.CLIP) c = if (((x - y + 4096) / 4) % 2 == 0) 0xFF000000.toInt() else 0xFFFFFFFF.toInt()
+            if (zones && Expo.phoneMode && f.phoneClipped[i]) c = Zone.CLIPPED.argb.toInt()
+            else if (f.phoneClipped[i] && st < Expo.CLIP) c = if (((x - y + 4096) / 4) % 2 == 0) 0xFF000000.toInt() else 0xFFFFFFFF.toInt()
             px[i] = c
         }
     }
@@ -132,7 +133,7 @@ fun ToolsRow() {
     if (t.zebra) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("Zebras at", color = Color(0xFF9A9A9A), fontSize = 12.sp)
-            listOf(Expo.CLIP to "Clip +6", Expo.WARN to "+5⅓", 3.0 to "+3", Expo.GOOD_HIGH to "+1⅓ (hot skin)").forEach { (v, l) ->
+            listOf(Expo.CLIP to "Clip " + Expo.formatStops(Expo.CLIP), Expo.WARN to Expo.formatStops(Expo.WARN), 3.0 to "+3", Expo.GOOD_HIGH to "+1⅓ (hot skin)").forEach { (v, l) ->
                 FilterChip(t.zebraAt == v, { AppState.tools.value = t.copy(zebraAt = v) }, { Text(l, fontSize = 12.sp) })
             }
         }
@@ -155,7 +156,8 @@ fun PhoneControlsBody(lenses: List<Pair<String, String>>) {
             FilterChip(!p.matchPyxis, { set(p.copy(matchPyxis = false)) }, { Text("Manual") })
         }
         Text(
-            if (p.matchPyxis) "ISO and shutter follow the PYXIS, a few stops darker to protect highlights. Readings stay exact either way."
+            if (!AppState.link.value.connected) "Phone mode (no PYXIS connected): the phone uses its own ISO and shutter, and the colors show the phone's picture. Raise ISO and they move toward yellow, orange and red."
+            else if (p.matchPyxis) "Connected: ISO and shutter follow the PYXIS, a few stops darker to protect highlights. Colors show what the PYXIS records."
             else "Phone ISO and shutter only change how bright the phone's picture is. The zone colors show what the PYXIS will record, so they don't move. To see the zones shift, change the PYXIS ISO or iris at the top. Black-and-white hatching means the phone is too bright to read that spot: lower the phone ISO.",
             color = Color(0xFF9A9A9A), fontSize = 12.sp, modifier = Modifier.padding(vertical = 4.dp),
         )

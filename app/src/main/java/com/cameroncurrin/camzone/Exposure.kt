@@ -29,8 +29,14 @@ enum class Zone(val label: String, val argb: Long) {
 
 object Expo {
     /** Starting values from published data for this sensor family. Confirm with the zebra check. */
-    const val CLIP = 6.0
-    const val WARN = CLIP - 2.0 / 3.0
+    /** PYXIS clip point above middle gray. */
+    const val PYXIS_CLIP = 6.0
+    /** Phone clip point: the phone's picture with its 2.2 curve clips about 2.4 stops over middle gray. */
+    const val PHONE_CLIP = 2.4
+    /** True when no PYXIS is connected: zones describe the phone's own picture. */
+    @Volatile var phoneMode = false
+    val CLIP: Double get() = if (phoneMode) PHONE_CLIP else PYXIS_CLIP
+    val WARN: Double get() = CLIP - 2.0 / 3.0
     const val GOOD_LOW = -0.5
     const val GOOD_HIGH = 4.0 / 3.0
     const val CRUSH = -5.0

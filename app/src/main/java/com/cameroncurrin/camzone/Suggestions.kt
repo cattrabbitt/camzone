@@ -10,6 +10,8 @@ sealed class Action {
     data class AddNd(val stops: Double) : Action()
     /** Done by hand: clears the reading so Cam meters again. */
     object Remeter : Action()
+    /** Phone mode: sets the phone's own ISO. */
+    data class SetPhoneIso(val iso: Int) : Action()
 }
 
 /**

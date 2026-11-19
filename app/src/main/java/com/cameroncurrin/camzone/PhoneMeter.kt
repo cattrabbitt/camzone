@@ -92,7 +92,8 @@ class PhoneMeter(private val context: Context) {
     val lenses = MutableStateFlow<List<Pair<String, String>>>(emptyList())
 
     // Phone camera limits, read once
-    private var aperture = 1.7
+    var aperture = 1.7
+        private set
     private var minExposureNs = 100_000L
     private var maxExposureNs = 100_000_000L
     private var minIso = 50
@@ -220,7 +221,8 @@ class PhoneMeter(private val context: Context) {
         val minT = minExposureNs / 1e9
         var iso: Double
         var t: Double
-        if (pc.matchPyxis || scan != null) {
+        // Phone mode (no PYXIS): the phone runs on its own ISO and shutter. Connected: it follows the PYXIS.
+        if ((pc.matchPyxis && AppState.link.value.connected) || scan != null) {
             iso = minIso.toDouble()
             t = factor * 100 / iso
             if (t > maxT) { t = maxT; iso = (factor * 100 / t).coerceIn(minIso.toDouble(), maxIso.toDouble()) }
@@ -348,7 +350,7 @@ class PhoneMeter(private val context: Context) {
                 ev[ny * ow + nx] = sensorEv[y * gw + x]
                 clip[ny * ow + nx] = sensorClip[y * gw + x]
             }
-            AppState.frame.value = ZoneFrame(ow, oh, ev, clip)
+            AppState.frame.value = ZoneFrame(ow, oh, ev, clip, frameEv)
         } finally {
             img.close()
         }

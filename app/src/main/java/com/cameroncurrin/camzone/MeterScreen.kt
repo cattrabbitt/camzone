@@ -1,5 +1,7 @@
 package com.cameroncurrin.camzone
 
+import kotlin.math.pow
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import android.content.res.Configuration
@@ -84,6 +86,7 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
     var showSettings by remember { mutableStateOf(false) }
     var showCal by remember { mutableStateOf(false) }
     var picker by remember { mutableStateOf<PyxisParam?>(null) }
+    var phonePick by remember { mutableStateOf<PyxisParam?>(null) }
     var panel by remember { mutableStateOf<String?>(null) }
     val full by AppState.fullFeed.collectAsState()
     val matchImg by Match.image.collectAsState()
@@ -109,11 +112,23 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
     val lenses by meter.lenses.collectAsState()
 
     // Keep the phone camera in manual, locked to the PYXIS settings or the manual controls
-    LaunchedEffect(settings, cal, phone) { meter.applyManual(settings, cal, phone) }
+    LaunchedEffect(settings, cal, phone, linkState.connected) { meter.applyManual(settings, cal, phone) }
+
+    // Phone mode: no PYXIS connected, so the colors describe the phone's own picture (its ISO and shutter).
+    // Connected: the colors describe what the PYXIS records.
+    val phoneOnly = !linkState.connected
+    SideEffect { Expo.phoneMode = phoneOnly }
+    val vs: CamSettings = if (!phoneOnly) settings else {
+        // Settings whose middle gray equals the phone's actual exposure (calibration folded in so it cancels out)
+        val sec = Expo.shutterSeconds(phone.shutterAngle, phone.fps)
+        val g = (frame?.exposureEv ?: Expo.ev100(meter.aperture, sec, phone.iso.toDouble())) + cal
+        CamSettings(iso = phone.iso, shutterAngle = phone.shutterAngle, fps = phone.fps,
+            tStop = kotlin.math.sqrt(2.0.pow(g) * sec * phone.iso / 100.0), nd = 0.0)
+    }
 
     val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     val settingsStrip: @Composable () -> Unit = {
-        PyxisStrip(
+        if (phoneOnly) PhoneStrip(phone, meter.aperture, onPick = { phonePick = it }, onConnect = null) else PyxisStrip(
             settings,
             if (linkState.connected) "Live from ${linkState.name} · tap a setting to change it" else if (fromCamera) "Last read from camera" else "Not connected · tap a setting to set it",
             if (linkState.connected) Color(0xFF29B83D) else Color(0xFF9A9A9A),
@@ -135,7 +150,7 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
                 },
             )
             val f = frame
-            val bmp = remember(f, settings, cal, mode, tools) { f?.let { renderOverlay(it, settings, cal, mode == Mode.ZONES, tools) } }
+            val bmp = remember(f, vs, cal, mode, tools, phoneOnly) { f?.let { renderOverlay(it, vs, cal, mode == Mode.ZONES, tools) } }
             Canvas(
                 Modifier.matchParentSize()
                     .pointerInput(Unit) {
@@ -191,9 +206,9 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
             val badge = if (mode == Mode.CONTRAST) {
                 val k = keyPt; val fl = fillPt
                 if (k != null && fl != null) "Contrast " + Expo.ratio(k.ev - fl.ev) else null
-            } else face?.let { "Face " + Expo.formatStops(Expo.stopsAt(it.ev, settings)) }
+            } else face?.let { "Face " + Expo.formatStops(Expo.stopsAt(it.ev, vs)) }
             if (badge != null) {
-                val col = if (mode == Mode.CONTRAST) Color.White else face?.let { Color(Expo.zone(Expo.stopsAt(it.ev, settings)).argb) } ?: Color.White
+                val col = if (mode == Mode.CONTRAST) Color.White else face?.let { Color(Expo.zone(Expo.stopsAt(it.ev, vs)).argb) } ?: Color.White
                 Text(badge, color = col, fontWeight = FontWeight.Bold, fontSize = 15.sp,
                     modifier = Modifier.align(Alignment.TopStart).padding(8.dp).background(Color(0x99000000), RoundedCornerShape(6.dp)).padding(horizontal = 8.dp, vertical = 4.dp))
             }
@@ -214,7 +229,7 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
                             if (rr != null) {
                                 val rc = Match.recipe(rr, AppState.kit.value, settings)
                                 Text(rc.title, color = Color.White, fontWeight = FontWeight.Bold)
-                                val fNow = face?.let { Expo.formatStops(Expo.stopsAt(it.ev, settings)) } ?: "tap the face"
+                                val fNow = face?.let { Expo.formatStops(Expo.stopsAt(it.ev, vs)) } ?: "tap the face"
                                 Text("Face: target ${Expo.formatStops(rc.faceTarget)} · now $fNow", color = Color(0xFFDDDDDD), fontSize = 14.sp)
                                 val k = keyPt; val fl = fillPt
                                 val cNow = if (k != null && fl != null) Expo.ratio(k.ev - fl.ev) else "use Contrast mode"
@@ -253,7 +268,7 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
             phoneStatus + if (mode == Mode.ZONES) "" else " · gray view shows what the PYXIS would see",
             color = Color(0xFF8A8A8A), fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp),
         )
-        if (tools.histogram) StopHistogram(f = frame, s = settings, cal = cal)
+        if (tools.histogram) StopHistogram(f = frame, s = vs, cal = cal)
         Spacer(Modifier.height(6.dp))
         // Readouts
         if (mode == Mode.CONTRAST) {
@@ -262,18 +277,18 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
             ReadoutCard(
                 when {
                     k == null -> "Tap the bright (key) side of the face"
-                    fl == null -> "Key ${Expo.formatStops(Expo.stopsAt(k.ev, settings))}. Now tap the shadow (fill) side"
+                    fl == null -> "Key ${Expo.formatStops(Expo.stopsAt(k.ev, vs))}. Now tap the shadow (fill) side"
                     else -> {
                         val d = k.ev - fl.ev
                         "Contrast ${Expo.ratio(d)} · ${Expo.formatStops(abs(d)).removePrefix("+")} stops\n" +
-                            "Key ${Expo.formatStops(Expo.stopsAt(k.ev, settings))} · Fill ${Expo.formatStops(Expo.stopsAt(fl.ev, settings))}\n" +
+                            "Key ${Expo.formatStops(Expo.stopsAt(k.ev, vs))} · Fill ${Expo.formatStops(Expo.stopsAt(fl.ev, vs))}\n" +
                             ratioHint(d)
                     }
                 },
             )
         } else {
             face?.let {
-                val s = Expo.stopsAt(it.ev, settings)
+                val s = Expo.stopsAt(it.ev, vs)
                 val z = Expo.zone(s)
                 ReadoutCard("Face ${Expo.formatStops(s)} stops · ${z.label}", Color(z.argb))
             }
@@ -281,7 +296,7 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
 
         // Advice
         @Suppress("UNUSED_VARIABLE") val mt = matchTarget // re-run advice when the match target changes
-        val list = Advisor.build(settings, look, face, frame, cal, widest, narrowest)
+        val list = if (phoneOnly) phoneAdvice(face, vs, look) else Advisor.build(settings, look, face, frame, cal, widest, narrowest)
         list.forEach { sug ->
             SuggestionCard(
                 sug, applyStatus[sug.id], linkState.connected,
@@ -311,6 +326,7 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
                             AppState.settings.value = settings.copy(nd = settings.nd + a.stops); AppState.save()
                         }
                         Action.Remeter -> { AppState.face.value = null }
+                        is Action.SetPhoneIso -> { AppState.phone.value = AppState.phone.value.copy(iso = a.iso, matchPyxis = false) }
                         null -> Unit
                     }
                     Unit
@@ -359,6 +375,7 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
     }
 
     picker?.let { pp -> PyxisPicker(pp, settings, link()) { picker = null } }
+    phonePick?.let { pp -> PhonePicker(pp, phone) { phonePick = null } }
     if (showSettings) SettingsDialog(settings) { showSettings = false }
     if (showCal) CalibrateDialog(meter, settings) { showCal = false }
 }
@@ -416,6 +433,8 @@ fun SuggestionCard(s: Suggestion, status: ApplyStatus?, connected: Boolean, onAp
                     Button(onClick = onDidIt, modifier = Modifier.padding(top = 6.dp)) { Text("I did it") }
                 }
                 status == ApplyStatus.SENDING -> Text("Sending to the PYXIS…", color = Color(0xFF9A9A9A), modifier = Modifier.padding(top = 8.dp))
+                a is Action.SetPhoneIso ->
+                    Button(onClick = onApply, modifier = Modifier.padding(top = 8.dp)) { Text("Set phone ISO ${a.iso}") }
                 a is Action.SetIris || a is Action.SetIso ->
                     Button(onClick = onApply, modifier = Modifier.padding(top = 8.dp)) { Text(if (connected) "Apply" else "Show me how") }
                 a is Action.AddNd -> {
