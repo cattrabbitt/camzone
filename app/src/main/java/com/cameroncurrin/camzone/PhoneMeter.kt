@@ -10,6 +10,7 @@ import android.hardware.camera2.CaptureResult
 import android.hardware.camera2.TotalCaptureResult
 import android.hardware.camera2.params.TonemapCurve
 import androidx.camera.camera2.interop.Camera2CameraControl
+import androidx.camera.camera2.interop.Camera2CameraInfo
 import androidx.camera.camera2.interop.Camera2Interop
 import androidx.camera.camera2.interop.CaptureRequestOptions
 import androidx.camera.camera2.interop.ExperimentalCamera2Interop
@@ -58,6 +59,13 @@ class PhoneMeter(private val context: Context) {
     private var lastExposure: FrameExposure? = null
     private val executor = Executors.newSingleThreadExecutor()
     private var camera: Camera? = null
+    private var owner: LifecycleOwner? = null
+    private var previewView: PreviewView? = null
+    private var boundLens: String? = null
+    private var minFocusDiopters = 0f
+
+    /** Back lenses on this phone: camera id to a readable label. */
+    val lenses = MutableStateFlow<List<Pair<String, String>>>(emptyList())
 
     // Phone camera limits, read once
     private var aperture = 1.7
@@ -72,10 +80,27 @@ class PhoneMeter(private val context: Context) {
     private val shortSide = 240 // zone map cells along the short side
 
     fun bind(owner: LifecycleOwner, previewView: PreviewView) {
-        readLimits()
+        this.owner = owner
+        this.previewView = previewView
+        boundLens = AppState.phone.value.lensId
+        rebind()
+    }
+
+    /** Binds the camera, using the lens chosen in the phone controls. */
+    fun rebind() {
+        val owner = owner ?: return
+        val pv = previewView ?: return
         val providerFuture = ProcessCameraProvider.getInstance(context)
         providerFuture.addListener({
             val provider = providerFuture.get()
+            listLenses(provider)
+            val wanted = AppState.phone.value.lensId
+            boundLens = wanted
+            val camSelector = if (wanted == null) CameraSelector.DEFAULT_BACK_CAMERA else
+                CameraSelector.Builder().addCameraFilter { infos ->
+                    infos.filter { Camera2CameraInfo.from(it).cameraId == wanted }.ifEmpty { infos.take(1) }
+                }.requireLensFacing(CameraSelector.LENS_FACING_BACK).build()
+
             val selector = ResolutionSelector.Builder()
                 .setAspectRatioStrategy(AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY)
                 .build()
@@ -103,28 +128,42 @@ class PhoneMeter(private val context: Context) {
                 }
             })
 
-            val preview = previewBuilder.build().also { it.setSurfaceProvider(previewView.surfaceProvider) }
+            val preview = previewBuilder.build().also { it.setSurfaceProvider(pv.surfaceProvider) }
             val analysis = analysisBuilder.build().also { it.setAnalyzer(executor) { img -> analyze(img) } }
             provider.unbindAll()
-            camera = provider.bindToLifecycle(owner, CameraSelector.DEFAULT_BACK_CAMERA, preview, analysis)
-            applyManual(AppState.settings.value, AppState.calibration.value)
+            val cam = provider.bindToLifecycle(owner, camSelector, preview, analysis)
+            camera = cam
+            readLimits(Camera2CameraInfo.from(cam.cameraInfo))
+            applyManual(AppState.settings.value, AppState.calibration.value, AppState.phone.value)
         }, ContextCompat.getMainExecutor(context))
     }
 
-    private fun readLimits() {
+    private fun listLenses(provider: ProcessCameraProvider) {
         try {
-            val mgr = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
-            val id = mgr.cameraIdList.first { id ->
-                mgr.getCameraCharacteristics(id).get(CameraCharacteristics.LENS_FACING) == CameraCharacteristics.LENS_FACING_BACK
-            }
-            val ch = mgr.getCameraCharacteristics(id)
-            ch.get(CameraCharacteristics.LENS_INFO_AVAILABLE_APERTURES)?.firstOrNull()?.let { aperture = it.toDouble() }
-            ch.get(CameraCharacteristics.SENSOR_INFO_EXPOSURE_TIME_RANGE)?.let { minExposureNs = it.lower; maxExposureNs = it.upper }
-            ch.get(CameraCharacteristics.SENSOR_INFO_SENSITIVITY_RANGE)?.let { minIso = it.lower; maxIso = it.upper }
-            val modes = ch.get(CameraCharacteristics.TONEMAP_AVAILABLE_TONE_MAP_MODES) ?: intArrayOf()
+            lenses.value = provider.availableCameraInfos
+                .filter { it.lensFacing == CameraSelector.LENS_FACING_BACK }
+                .map { info ->
+                    val c = Camera2CameraInfo.from(info)
+                    val f = c.getCameraCharacteristic(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS)?.firstOrNull() ?: 0f
+                    val size = c.getCameraCharacteristic(CameraCharacteristics.SENSOR_INFO_PHYSICAL_SIZE)
+                    val eq = if (size != null && f > 0) (f * 43.27 / kotlin.math.hypot(size.width.toDouble(), size.height.toDouble())).roundToInt() else 0
+                    c.cameraId to (if (eq > 0) "${eq}mm" else "Lens ${c.cameraId}")
+                }
+                .distinctBy { it.second }
+                .sortedBy { it.second.removeSuffix("mm").toIntOrNull() ?: 999 }
+        } catch (_: Exception) { }
+    }
+
+    private fun readLimits(info: Camera2CameraInfo) {
+        try {
+            info.getCameraCharacteristic(CameraCharacteristics.LENS_INFO_AVAILABLE_APERTURES)?.firstOrNull()?.let { aperture = it.toDouble() }
+            info.getCameraCharacteristic(CameraCharacteristics.SENSOR_INFO_EXPOSURE_TIME_RANGE)?.let { minExposureNs = it.lower; maxExposureNs = it.upper }
+            info.getCameraCharacteristic(CameraCharacteristics.SENSOR_INFO_SENSITIVITY_RANGE)?.let { minIso = it.lower; maxIso = it.upper }
+            val modes = info.getCameraCharacteristic(CameraCharacteristics.TONEMAP_AVAILABLE_TONE_MAP_MODES) ?: intArrayOf()
             curveSupported = modes.contains(CaptureRequest.TONEMAP_MODE_CONTRAST_CURVE)
             gammaSupported = modes.contains(CaptureRequest.TONEMAP_MODE_GAMMA_VALUE)
-            maxCurvePoints = ch.get(CameraCharacteristics.TONEMAP_MAX_CURVE_POINTS) ?: 32
+            maxCurvePoints = info.getCameraCharacteristic(CameraCharacteristics.TONEMAP_MAX_CURVE_POINTS) ?: 32
+            minFocusDiopters = info.getCameraCharacteristic(CameraCharacteristics.LENS_INFO_MINIMUM_FOCUS_DISTANCE) ?: 0f
         } catch (_: Exception) { }
     }
 
@@ -132,7 +171,8 @@ class PhoneMeter(private val context: Context) {
      * Sets the phone's shutter and ISO so it tracks the PYXIS, HEADROOM stops darker.
      * Call again whenever the PYXIS settings or the calibration change.
      */
-    fun applyManual(s: CamSettings, calibration: Double) {
+    fun applyManual(s: CamSettings, calibration: Double, pc: PhoneControls) {
+        if (pc.lensId != boundLens) { rebind(); return }
         val cam = camera ?: return
         // EV the phone must be set to: PYXIS middle gray lands at 0.18 * 2^-HEADROOM
         val evSet = Expo.grayEv(s) - calibration + HEADROOM
@@ -140,17 +180,31 @@ class PhoneMeter(private val context: Context) {
         // Prefer a clean ISO, then adjust the shutter; cap the shutter at 1/30 so the preview stays live
         val maxT = minOf(maxExposureNs / 1e9, 1.0 / 30)
         val minT = minExposureNs / 1e9
-        var iso = minIso.toDouble()
-        var t = factor * 100 / iso
-        if (t > maxT) { t = maxT; iso = (factor * 100 / t).coerceIn(minIso.toDouble(), maxIso.toDouble()) }
-        if (t < minT) t = minT
+        var iso: Double
+        var t: Double
+        if (pc.matchPyxis) {
+            iso = minIso.toDouble()
+            t = factor * 100 / iso
+            if (t > maxT) { t = maxT; iso = (factor * 100 / t).coerceIn(minIso.toDouble(), maxIso.toDouble()) }
+            if (t < minT) t = minT
+        } else {
+            iso = pc.iso.toDouble().coerceIn(minIso.toDouble(), maxIso.toDouble())
+            t = (pc.shutterAngle / 360.0 / pc.fps).coerceIn(minT, maxExposureNs / 1e9)
+        }
 
         val b = CaptureRequestOptions.Builder()
             .setCaptureRequestOption(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_OFF)
             .setCaptureRequestOption(CaptureRequest.SENSOR_EXPOSURE_TIME, (t * 1e9).toLong())
             .setCaptureRequestOption(CaptureRequest.SENSOR_SENSITIVITY, iso.roundToInt())
             .setCaptureRequestOption(CaptureRequest.CONTROL_POST_RAW_SENSITIVITY_BOOST, 100)
-            .setCaptureRequestOption(CaptureRequest.CONTROL_AWB_LOCK, true)
+            .setCaptureRequestOption(CaptureRequest.CONTROL_AWB_MODE, pc.wb.mode)
+            .setCaptureRequestOption(CaptureRequest.CONTROL_AWB_LOCK, pc.wb != Wb.AUTO)
+        if (pc.autoFocus) {
+            b.setCaptureRequestOption(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)
+        } else {
+            b.setCaptureRequestOption(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_OFF)
+            b.setCaptureRequestOption(CaptureRequest.LENS_FOCUS_DISTANCE, pc.focus * minFocusDiopters)
+        }
         when {
             curveSupported -> {
                 val n = maxCurvePoints.coerceIn(2, 64)

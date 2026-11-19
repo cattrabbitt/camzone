@@ -40,6 +40,8 @@ object AppState {
     val link = MutableStateFlow(LinkState())
     /** Pending Apply actions and whether they failed, keyed by suggestion id. */
     val applyStatus = MutableStateFlow<Map<String, ApplyStatus>>(emptyMap())
+    val phone = MutableStateFlow(PhoneControls())
+    val tools = MutableStateFlow(Tools())
 
     private var prefs: SharedPreferences? = null
 
@@ -91,3 +93,39 @@ object AppState {
 }
 
 enum class ApplyStatus { SENDING, FAILED }
+
+enum class Wb(val label: String, val mode: Int) {
+    AUTO("Auto", android.hardware.camera2.CaptureRequest.CONTROL_AWB_MODE_AUTO),
+    TUNGSTEN("3200K", android.hardware.camera2.CaptureRequest.CONTROL_AWB_MODE_INCANDESCENT),
+    WARM_FL("3000K fl.", android.hardware.camera2.CaptureRequest.CONTROL_AWB_MODE_WARM_FLUORESCENT),
+    FLUORESCENT("4000K", android.hardware.camera2.CaptureRequest.CONTROL_AWB_MODE_FLUORESCENT),
+    DAYLIGHT("5600K", android.hardware.camera2.CaptureRequest.CONTROL_AWB_MODE_DAYLIGHT),
+    CLOUDY("6500K", android.hardware.camera2.CaptureRequest.CONTROL_AWB_MODE_CLOUDY_DAYLIGHT),
+    SHADE("7500K", android.hardware.camera2.CaptureRequest.CONTROL_AWB_MODE_SHADE),
+}
+
+enum class Guide(val label: String, val ratio: Float) {
+    OFF("Off", 0f), R239("2.39", 2.39f), R185("1.85", 1.85f), R169("16:9", 16f / 9f),
+}
+
+/** The phone camera's own settings. In Match PYXIS, ISO and shutter follow the PYXIS. */
+data class PhoneControls(
+    val matchPyxis: Boolean = true,
+    val iso: Int = 100,
+    val shutterAngle: Double = 180.0,
+    val fps: Double = 24.0,
+    val wb: Wb = Wb.DAYLIGHT,
+    val autoFocus: Boolean = true,
+    /** 0 = infinity, 1 = closest focus */
+    val focus: Float = 0f,
+    val lensId: String? = null,
+)
+
+data class Tools(
+    val zebra: Boolean = false,
+    val zebraAt: Double = Expo.WARN,
+    val peaking: Boolean = false,
+    val guide: Guide = Guide.OFF,
+    val histogram: Boolean = true,
+    val grid: Boolean = false,
+)

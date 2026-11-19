@@ -59,6 +59,14 @@ private val steps = listOf(
         "Contrast mode: tap the key side, then the fill side, to read the ratio.",
         "Check the PYXIS Map LUT: face green, nothing you care about in orange or red. Switch to Guard and roll.",
     ),
+    "Phone camera and monitoring tools" to listOf(
+        "The phone camera always runs in manual: no auto exposure, so the colors only change when the light or your PYXIS settings change.",
+        "Match PYXIS (default): the phone's ISO and shutter follow the PYXIS, a few stops darker so its smaller sensor keeps the highlights. Manual: set ISO, shutter angle and frame rate yourself.",
+        "White balance, focus (auto or manual) and lens choice are under Phone camera on the Meter tab.",
+        "Zebras: stripes over anything above the level you pick (clip, +5⅓, +3, or +1⅓ for hot skin). Peaking: cyan edges where focus is sharp.",
+        "Guides shade the frame to 2.39, 1.85 or 16:9. Grid shows thirds. The histogram is in stops, colored like the LUT.",
+        "In Spot and Contrast modes the picture turns gray and shows brightness the way the PYXIS would record it.",
+    ),
     "Check the clip warning (2 minutes)" to listOf(
         "Turn on 100% zebras on the PYXIS with no LUT and point it at a bulb.",
         "Turn the zebras off and load the Map LUT. Red should sit where the zebras were, with orange just before it.",

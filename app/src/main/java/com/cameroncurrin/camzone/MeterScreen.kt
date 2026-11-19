@@ -80,9 +80,12 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
     val scope = rememberCoroutineScope()
     val lifecycle = LocalLifecycleOwner.current
     val phoneStatus by meter.status.collectAsState()
+    val phone by AppState.phone.collectAsState()
+    val tools by AppState.tools.collectAsState()
+    val lenses by meter.lenses.collectAsState()
 
-    // Keep the phone's manual exposure locked to the PYXIS settings
-    LaunchedEffect(settings, cal) { meter.applyManual(settings, cal) }
+    // Keep the phone camera in manual, locked to the PYXIS settings or the manual controls
+    LaunchedEffect(settings, cal, phone) { meter.applyManual(settings, cal, phone) }
 
     Column(Modifier.verticalScroll(rememberScrollState()).padding(12.dp)) {
         // Settings strip
@@ -119,7 +122,7 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
                 },
             )
             val f = frame
-            val bmp = remember(f, settings, cal) { f?.let { zoneBitmap(it, settings, cal) } }
+            val bmp = remember(f, settings, cal, mode, tools) { f?.let { renderOverlay(it, settings, cal, mode == Mode.ZONES, tools) } }
             Canvas(
                 Modifier.matchParentSize().pointerInput(mode) {
                     detectTapGestures { pos ->
@@ -139,15 +142,16 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
                     }
                 },
             ) {
-                if (bmp != null && mode == Mode.ZONES) {
+                if (bmp != null) {
                     drawImage(
                         bmp.asImageBitmap(),
                         dstOffset = IntOffset.Zero,
                         dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt()),
-                        alpha = 0.9f,
+                        alpha = if (mode == Mode.ZONES) 0.9f else 1f,
                         filterQuality = FilterQuality.Low,
                     )
                 }
+                drawGuides(tools)
                 fun marker(s: Spot?, c: Color) {
                     if (s == null) return
                     drawCircle(c, radius = 22f, center = Offset(s.x * size.width, s.y * size.height), style = Stroke(5f))
@@ -158,10 +162,13 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
             }
         }
         Text(
-            phoneStatus + " · picture is darker on purpose, to protect highlights",
+            phoneStatus + if (mode == Mode.ZONES) "" else " · gray view shows what the PYXIS would see",
             color = Color(0xFF8A8A8A), fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp),
         )
+        if (tools.histogram) StopHistogram(f = frame, s = settings, cal = cal)
         Spacer(Modifier.height(8.dp))
+        ToolsRow()
+        Spacer(Modifier.height(4.dp))
 
         // Mode chips
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -248,6 +255,7 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
             )
         }
 
+        PhoneControlsPanel(lenses)
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = { showCal = true }) { Text(if (cal == 0.0) "Calibrate with gray card" else "Recalibrate") }
