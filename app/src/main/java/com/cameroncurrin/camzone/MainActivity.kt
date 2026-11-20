@@ -67,6 +67,8 @@ class MainActivity : ComponentActivity() {
         askCamera.launch(Manifest.permission.CAMERA)
         lifecycleScope.launch { Match.restore(this@MainActivity) }
 
+        // Keep the screen awake while Cam Zone is open (released automatically when you leave the app)
+        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         setContent {
             MaterialTheme(colorScheme = darkColorScheme(
                 primary = Color(0xFF29B83D),
