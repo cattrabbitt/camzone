@@ -52,7 +52,7 @@ fun LearnScreen(onHome: () -> Unit = {}) {
             }
         }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 10.dp)) {
-            listOf("Basics", "Lighting techniques", "App guide").forEachIndexed { i, l -> Chip(l, tab == i) { tab = i } }
+            listOf("Basics", "Lighting techniques", "Shots & lenses", "App guide").forEachIndexed { i, l -> Chip(l, tab == i) { tab = i } }
         }
         Box(Modifier.weight(1f)) {
             when (tab) {
@@ -63,6 +63,10 @@ fun LearnScreen(onHome: () -> Unit = {}) {
                 1 -> LessonList(
                     "Real setups you can build with your kit. Each one has a top-down map: camera at the bottom, subject in the middle.",
                     Lessons.techniques,
+                )
+                2 -> LessonList(
+                    "Shot sizes, angles, lenses, movement and coverage, and which to pick for the mood you want.",
+                    Lessons.shots,
                 )
                 else -> GuideScreen()
             }

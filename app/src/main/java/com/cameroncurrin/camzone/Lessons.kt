@@ -266,4 +266,135 @@ object Lessons {
             diagram = listOf(DLight("Lamp (practical)", 70f, 0.9f, DLight.Kind.PRACTICAL), DLight("Key from lamp side", 60f, 0.65f)),
         ),
     )
+
+    /** Shots, angles, lenses and movement: what each choice does to the audience, and when to pick it. */
+    val shots = listOf(
+        Lesson(
+            "sizes", "Shot sizes",
+            "How much of the person is in frame decides how close the audience feels.",
+            listOf(
+                "Extreme wide / establishing: the whole place, people small. Tells the audience where we are. Mood: scale, isolation, awe, a person lost in their world.",
+                "Wide / full shot: head to toe with room around them. Shows body language and the space they move through. Good for action, comedy (physical timing) and blocking you want to read clearly.",
+                "Cowboy / medium wide: mid-thigh up. Two people talking with gestures, walk-and-talks.",
+                "Medium shot: waist up. The neutral everyday conversation size. Feels objective, like standing in the room with them.",
+                "Medium close-up: chest up. The workhorse for dialogue: we read the face but still see posture.",
+                "Close-up: face fills most of the frame. Emotion, decisions, the moment something lands. Use it when it matters: if everything is a close-up, nothing is.",
+                "Extreme close-up: eyes, lips, a hand, a detail. Tension, obsession, a clue the audience must notice. Your probe lens lives here.",
+                "Insert: an object (a phone screen, a key, a gun on the table). Gives the audience information and is great for hiding cuts.",
+                "Rule of thumb: start wider to set the scene, get tighter as the emotion rises, and save your tightest shot for the scene's turning point.",
+            ),
+            tryIt = listOf(
+                "Shoot the same 20-second moment in a wide, a medium and a close-up. Cut it three ways in Resolve and watch how the feeling changes with only the size.",
+                "Watch one scene from a film you love with the sound off and write down each shot size. Note where it goes tightest.",
+            ),
+        ),
+        Lesson(
+            "angles", "Camera angles",
+            "Where the camera sits, above, level or below, changes how powerful a character feels.",
+            listOf(
+                "Eye level: neutral and honest. The default for most dialogue. Put the lens at the actor's eye height, not yours.",
+                "Low angle (camera below the eyes, looking up): the character feels powerful, threatening or heroic. Go lower and wider for menace.",
+                "High angle (camera above, looking down): the character feels small, weak, trapped or watched.",
+                "Overhead / bird's-eye: straight down. Detached, godlike, or showing a pattern (a body on a bed, a table spread). Feels like fate.",
+                "Dutch angle (tilted horizon): unease, madness, a world off balance. Strong spice: use it for a reason and sparingly.",
+                "Over-the-shoulder (OTS): the back of one person's shoulder in frame while we see the other's face. Connects two people and places us in the conversation.",
+                "POV: what the character sees. Pulls the audience into their head; great for horror and discovery.",
+                "Angles change over a scene: a character can start shot from above and end shot from below as they take control.",
+            ),
+            tryIt = listOf(
+                "Shoot one line of dialogue from eye level, low and high on the 35mm. Same line, three different characters.",
+                "In a two-person scene, shoot the stronger character slightly from below and the weaker slightly from above. Swap halfway when the power flips.",
+            ),
+        ),
+        Lesson(
+            "lenses", "Lenses and focal lengths (mm)",
+            "Wide lenses exaggerate space and closeness; long lenses flatten space and isolate.",
+            listOf(
+                "The PYXIS 6K has a full-frame sensor, so these ranges are full-frame numbers. DX/APS-C lenses (Sigma 18-35, Tokina 11-16) don't cover the full sensor: use them in a Super 35 crop mode or expect dark corners.",
+                "Ultra-wide, 11 to 20mm: huge space, strong distortion up close. Faces bend and noses grow if you get near. Mood: unease, chaos, a character too close for comfort, or big empty spaces. Your 18mm and the Tokina.",
+                "Wide, 24 to 35mm: shows the room around the person while still feeling natural. Great for handheld, walk-and-talks and putting the audience in the space with someone. Your 35mm, Zeiss 28, 24-105 at the wide end.",
+                "Normal, 40 to 58mm: close to how the eye sees. Honest and invisible. Many films live here. Your 50mm, Takumar 50, Helios 58 (with its swirly background).",
+                "Short telephoto, 75 to 105mm: flattering faces, soft backgrounds. The classic close-up and interview lens. Your 85mm.",
+                "Telephoto, 135mm and up: you stand far back, so the background looks pulled in and squashed against the subject (compression). Isolates people from the world, feels observed or voyeuristic, and makes running toward camera feel endless. Your Carenar 135 and the 75-200.",
+                "It's really about distance: a 'wide lens look' comes from the camera being close; a 'long lens look' comes from being far away. The lens just decides how much fits in the frame from there.",
+                "Depth of field: longer lenses and wider apertures give a softer background at the same framing. For a deep, everything-sharp look, go wider and stop down to T5.6 or more (light accordingly).",
+            ),
+            tryIt = listOf(
+                "Frame the same medium close-up on the 18mm, 35mm, 50mm and 85mm by moving the camera to keep the face the same size. Compare the face shape and the background.",
+                "Shoot someone walking toward camera on the 18mm, then on the 135mm from far back. The 18mm rushes; the 135mm crawls.",
+            ),
+            gear = "Primes: 18, 28 (Zeiss), 35, 50 (and the Takumar), 58 (Helios), 85, 135 (Carenar). Zooms: 24-105, 75-200 with macro. Probe lens for extreme close-ups.",
+        ),
+        Lesson(
+            "movement", "Camera movement",
+            "Move the camera when the story or the character moves. Each move has a feeling.",
+            listOf(
+                "Static (locked off): calm, controlled, observational. Lets the actors and the frame do the work. Comedy and tension both love a still frame. Sachtler tripod or the K5S head.",
+                "Pan and tilt: turning the camera on the spot. Follows action or reveals something new. A slow pan reveal builds anticipation; a whip pan is energy or a punchline.",
+                "Push in (dolly in): moving toward the subject. Realization, rising emotion, 'this matters'. A slow push during a key line is one of the strongest tools you have. Dana Dolly.",
+                "Pull out (dolly out): moving away. Loneliness, revealing context, an ending. Dana Dolly or walking back on the gimbal.",
+                "Tracking / trucking: moving alongside the subject. Keeps us with a character in motion, walk-and-talks, chases. Dana Dolly for short smooth moves, gimbal or spring arm for long ones.",
+                "Handheld: urgent, raw, documentary, inside a character's anxiety. The Easyrig Minimax takes the weight so you can hold it steady enough for long takes.",
+                "Gimbal / stabilized float: dreamlike, gliding, following through spaces. RS 4 Pro, or the Flycam arm and vest for the heavier PYXIS rig.",
+                "Crane / jib (rising or falling): a rise lifts the audience away (an ending, awe); a drop brings us down into a scene. A drone does this outdoors (the Mavic Air 2 and Mavic 2).",
+                "Rack focus: shifting focus between two things in the same frame. Moves attention without cutting. The dolly zoom (push in while zooming out, or the reverse) makes the background stretch around the subject: vertigo, shock, the world shifting.",
+                "Rule: every move should start and stop with a reason, like an actor's move, a look or a line. A move with no motivation feels like the camera showing off.",
+            ),
+            tryIt = listOf(
+                "Shoot a slow 5-second push on the 50mm during a single line ('I know what you did'). Then shoot it static. Watch both.",
+                "Do a walk-and-talk twice: handheld with the Easyrig, then on the gimbal. Note which feels urgent and which feels calm.",
+            ),
+        ),
+        Lesson(
+            "coverage", "Coverage and the 180° rule",
+            "Get the shots the edit needs, and keep the audience oriented.",
+            listOf(
+                "Coverage is the set of shots that cover a scene: usually a master (wide, the whole scene), then mediums and close-ups of each actor, over-the-shoulders, and inserts.",
+                "180° rule: draw an imaginary line through the two people talking. Keep the camera on one side of it. Then person A always looks right and person B looks left, and the audience never gets confused about where they are.",
+                "Crossing the line on purpose is allowed: do it on camera with a move (so we see it happen), or to signal that something has flipped between the characters.",
+                "30° rule: when you cut between two shots of the same person, change the angle by at least 30° or change the shot size a lot. Smaller changes look like a mistake (a jump cut).",
+                "Match your singles: shoot both actors' close-ups on the same lens at the same distance and height so the edit feels balanced. Change that on purpose when one character should feel bigger.",
+                "Eyelines: in singles, have the off-camera actor stand right beside the lens so the eyeline is close. The closer to the lens, the more intimate.",
+                "Order on a small crew: light and shoot the master, then turn around once for each side. Fewer lighting changes = more takes.",
+            ),
+            tryIt = listOf(
+                "Block a two-person scene, mark the 180° line with tape on the floor, and shoot master, two OTS and two close-ups without crossing it.",
+            ),
+        ),
+        Lesson(
+            "blocking-camera", "Blocking for the camera",
+            "Stage the actors so the frame tells the story before anyone speaks.",
+            listOf(
+                "Block first, then light, then shoot. Rehearse the moves, put tape marks down, then light the marks.",
+                "Distance between characters is emotion: far apart = conflict or distance; closing the gap = connection or threat.",
+                "Depth staging: one character close to the lens, another deep in the frame. Lets you shoot a whole exchange in one shot and shows who dominates.",
+                "Triangle blocking: place two actors and the camera in a triangle so both faces read without cutting.",
+                "Let the actor's move motivate the camera's move: they stand, the camera rises; they walk to the window, we track with them.",
+                "Reveal by blocking: an actor steps aside to reveal someone behind them, or walks out of frame to leave something behind.",
+                "Light and blocking together: turn the actor so their face goes into the key at the important line. Cam Zone's Spot mode on each mark tells you if it reads.",
+            ),
+            tryIt = listOf(
+                "Shoot a two-person argument in one shot with no cuts. Use distance and depth only to show who's winning.",
+            ),
+        ),
+        Lesson(
+            "mood", "Picking shots for a mood",
+            "A quick cheat sheet: shot size, angle, lens and movement together.",
+            listOf(
+                "Tension / dread: tight shots, slightly low or Dutch angle, wide lens close to faces, slow push in or locked off and long. Leave empty space in the frame where something could appear.",
+                "Intimacy / romance: close-ups on 50 to 85mm, eye level, soft background, gentle handheld or slow push. Keep the camera close and the light soft.",
+                "Power / dominance: low angle, wider lens, character large in frame and centered. Their opponent from above and smaller in frame.",
+                "Isolation / loneliness: wide shot, character small and off center, lots of negative space, static or a slow pull out. Or a long lens from far away, cut off from the world.",
+                "Chaos / urgency: handheld, wide lens, quick moves and whip pans, cuts on movement, shot sizes jumping.",
+                "Calm / awe: wide, static or slow floating moves (gimbal, rising crane or drone), symmetrical frames, longer takes.",
+                "Comedy: wide enough to see the timing, static frames, centered and symmetrical, cut to the reaction.",
+                "Mystery / discovery: POV, slow pans revealing the room, inserts on clues, rack focus between the character and what they notice.",
+                "Horror: wide lens close to faces, high angles on the victim, long static shots that make the audience search the frame, slow pushes toward doorways.",
+            ),
+            tryIt = listOf(
+                "Pick one scene from your next film and choose a mood for it. Write one shot for each line: size, angle, lens and move. Then shoot it.",
+                "Use the Match tab on a still from a film with the mood you want, and copy its shot size and angle along with the light.",
+            ),
+        ),
+    )
 }
