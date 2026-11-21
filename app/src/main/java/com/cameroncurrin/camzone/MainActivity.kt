@@ -118,7 +118,7 @@ fun App(meter: PhoneMeter, ble: PyxisBle, rest: PyxisRest) {
                 1 -> ScoutScreen(meter)
                 2 -> MatchScreen()
                 3 -> LinkScreen(ble, rest)
-                else -> LearnScreen()
+                else -> LearnScreen(onHome = { tab = 0; navShown = true; poke++ })
             }
             if (!navShown && !full) {
                 // Swipe up (or tap) on the handle to bring the menu back

@@ -39,10 +39,11 @@ import androidx.compose.ui.unit.sp
 /** Learn tab: beginner lessons, lighting techniques with diagrams, and the app guide. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun LearnScreen() {
+fun LearnScreen(onHome: () -> Unit = {}) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
     Column(Modifier.fillMaxSize()) {
-        androidx.compose.foundation.layout.Row(Modifier.padding(start = 12.dp, top = 10.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+        // Tap the logo or name to go back to the main (Meter) screen
+        androidx.compose.foundation.layout.Row(Modifier.padding(start = 12.dp, top = 10.dp).clickable(onClick = onHome), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(R.drawable.cc_logo), "Cameron Currin logo",
                 modifier = Modifier.size(44.dp))
             Column(Modifier.padding(start = 10.dp)) {
