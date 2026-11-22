@@ -133,7 +133,7 @@ fun ToolsRow() {
     if (t.zebra) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("Zebras at", color = Color(0xFF9A9A9A), fontSize = 12.sp)
-            listOf(Expo.CLIP to "Clip " + Expo.formatStops(Expo.CLIP), Expo.WARN to Expo.formatStops(Expo.WARN), 3.0 to "+3", Expo.GOOD_HIGH to "+1⅓ (hot skin)").forEach { (v, l) ->
+            listOf(Expo.CLIP to "Clip " + Expo.formatStops(Expo.CLIP), Expo.WARN to Expo.formatStops(Expo.WARN), 3.0 to "+3", Expo.GOOD_HIGH to Expo.formatStops(Expo.GOOD_HIGH) + " (top of green)").forEach { (v, l) ->
                 FilterChip(t.zebraAt == v, { AppState.tools.value = t.copy(zebraAt = v) }, { Text(l, fontSize = 12.sp) })
             }
         }

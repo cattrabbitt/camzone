@@ -21,10 +21,11 @@ data class LinkState(
     val status: String = "Not connected",
 )
 
-enum class Look(val label: String, val target: Double) {
-    NORMAL("Normal +1", 1.0),
-    MOODY("Moody 0", 0.0),
-    DARK("Dark −½", -0.5),
+/** [shift] moves the green "on target" range, matching the Map, Map Moody and Map LowKey LUTs. */
+enum class Look(val label: String, val target: Double, val shift: Double) {
+    NORMAL("Normal +1", 1.0, 0.0),
+    MOODY("Moody 0", 0.0, -1.0),
+    DARK("Dark −½", -0.5, -1.5),
 }
 
 object AppState {

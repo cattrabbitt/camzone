@@ -37,8 +37,10 @@ object Expo {
     @Volatile var phoneMode = false
     val CLIP: Double get() = if (phoneMode) PHONE_CLIP else PYXIS_CLIP
     val WARN: Double get() = CLIP - 2.0 / 3.0
-    const val GOOD_LOW = -0.5
-    const val GOOD_HIGH = 4.0 / 3.0
+    /** Moves the green range for the chosen Look (0, −1 or −1.5), like the mood LUTs. */
+    @Volatile var greenShift = 0.0
+    val GOOD_LOW: Double get() = -0.5 + greenShift
+    val GOOD_HIGH: Double get() = 4.0 / 3.0 + greenShift
     const val CRUSH = -5.0
 
     fun log2(x: Double) = ln(x) / ln(2.0)

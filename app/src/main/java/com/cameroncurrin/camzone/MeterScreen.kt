@@ -89,6 +89,7 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
     var phonePick by remember { mutableStateOf<PyxisParam?>(null) }
     var panel by remember { mutableStateOf<String?>(null) }
     var calMsg by remember { mutableStateOf("") }
+    var zoom by remember { mutableStateOf(1f) }
     val full by AppState.fullFeed.collectAsState()
     val lensNote by AppState.lensNote.collectAsState()
     val matchImg by Match.image.collectAsState()
@@ -119,7 +120,7 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
     // Phone mode: no PYXIS connected, so the colors describe the phone's own picture (its ISO and shutter).
     // Connected: the colors describe what the PYXIS records.
     val phoneOnly = !linkState.connected
-    SideEffect { Expo.phoneMode = phoneOnly }
+    SideEffect { Expo.phoneMode = phoneOnly; Expo.greenShift = look.shift }
     val vs: CamSettings = if (!phoneOnly) settings else {
         // Settings whose middle gray equals the phone's actual exposure (calibration folded in so it cancels out)
         val sec = Expo.shutterSeconds(phone.shutterAngle, phone.fps)
@@ -156,7 +157,7 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
                 },
             )
             val f = frame
-            val bmp = remember(f, vs, cal, mode, tools, phoneOnly) { f?.let { renderOverlay(it, vs, cal, mode == Mode.ZONES, tools) } }
+            val bmp = remember(f, vs, cal, mode, tools, phoneOnly, look) { f?.let { renderOverlay(it, vs, cal, mode == Mode.ZONES, tools) } }
             Canvas(
                 Modifier.matchParentSize()
                     .pointerInput(Unit) {
@@ -207,6 +208,37 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
             if (ghost && gi != null) {
                 val gb = remember(gi) { gi.asImageBitmap() }
                 androidx.compose.foundation.Image(gb, null, contentScale = androidx.compose.ui.layout.ContentScale.Crop, alpha = 0.4f, modifier = Modifier.matchParentSize())
+            }
+            // Aiming target: in Spot mode, point the center at something and tap Lock (or tap anywhere as before)
+            val fa = frame
+            if (mode == Mode.SPOT && panel != "Cal") {
+                Canvas(Modifier.matchParentSize()) {
+                    val r = size.width * 0.03f
+                    val w = 3f
+                    drawCircle(Color.White, radius = r, center = center, style = androidx.compose.ui.graphics.drawscope.Stroke(w))
+                    drawLine(Color.White, Offset(center.x - r * 2.2f, center.y), Offset(center.x - r * 1.2f, center.y), w)
+                    drawLine(Color.White, Offset(center.x + r * 1.2f, center.y), Offset(center.x + r * 2.2f, center.y), w)
+                    drawLine(Color.White, Offset(center.x, center.y - r * 2.2f), Offset(center.x, center.y - r * 1.2f), w)
+                    drawLine(Color.White, Offset(center.x, center.y + r * 1.2f), Offset(center.x, center.y + r * 2.2f), w)
+                }
+                if (fa != null && panel == null) {
+                    val aimEv = meter.sample(fa, 0.5f, 0.5f, radius = 4) + cal
+                    val aimSt = Expo.stopsAt(aimEv, vs)
+                    Row(Modifier.align(Alignment.BottomCenter).padding(8.dp), verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Aim " + Expo.formatStops(aimSt), color = Color(Expo.zone(aimSt).argb), fontWeight = FontWeight.Bold, fontSize = 15.sp,
+                            modifier = Modifier.background(Color(0x99000000), RoundedCornerShape(6.dp)).padding(horizontal = 8.dp, vertical = 4.dp))
+                        Button(onClick = { AppState.face.value = Spot(aimEv, 0.5f, 0.5f) }) { Text("Lock as face") }
+                    }
+                }
+            }
+            // Phone zoom, bottom-left (zooms the preview and the readings together)
+            if (panel == null) {
+                Column(Modifier.align(Alignment.BottomStart).padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf(1f, 2f, 4f).forEach { z ->
+                        FeedButton(if (z == 1f) "1×" else "${z.toInt()}×", zoom == z) { zoom = z; meter.setZoom(z) }
+                    }
+                }
             }
             // Reading badge, top-left
             val badge = if (mode == Mode.CONTRAST) {

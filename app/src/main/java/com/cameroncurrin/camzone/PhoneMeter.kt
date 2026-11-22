@@ -76,6 +76,16 @@ class PhoneMeter(private val context: Context) {
     private fun displayRotation(): Int =
         (context.getSystemService(android.content.Context.WINDOW_SERVICE) as android.view.WindowManager).defaultDisplay.rotation
 
+    /** Phone zoom. It crops the preview and the zone map together, so readings stay true to what you see. */
+    val zoomRange = kotlinx.coroutines.flow.MutableStateFlow(1f..1f)
+    fun setZoom(r: Float) {
+        val c = camera ?: return
+        val z = c.cameraInfo.zoomState.value
+        val lo = z?.minZoomRatio ?: 1f; val hi = z?.maxZoomRatio ?: 1f
+        zoomRange.value = lo..hi
+        c.cameraControl.setZoomRatio(r.coerceIn(lo, hi))
+    }
+
     /** Call when the screen turns, so the preview, zone map and photos follow it. */
     fun updateRotation() {
         val r = displayRotation()
@@ -170,6 +180,7 @@ class PhoneMeter(private val context: Context) {
             provider.unbindAll()
             val cam = provider.bindToLifecycle(owner, camSelector, preview, analysis, capture)
             camera = cam
+            cam.cameraInfo.zoomState.value?.let { zoomRange.value = it.minZoomRatio..it.maxZoomRatio }
             readLimits(Camera2CameraInfo.from(cam.cameraInfo))
             applyManual(AppState.settings.value, AppState.calibration.value, AppState.phone.value)
         }, ContextCompat.getMainExecutor(context))

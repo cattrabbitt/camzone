@@ -88,7 +88,8 @@ def classify(lin_wg):
     return np.log2(Y / GRAY), np.log2(mx / GRAY)
 
 
-def paint(log_rgb, style, space='gen5'):
+def paint(log_rgb, style, space='gen5', shift=0.0):
+    """shift moves the green 'on target' range for a mood: 0 normal, -1 moody, -1.5 low-key."""
     dec, mtx = SPACES[space]
     lin = dec(log_rgb) @ mtx.T
     s, smax = classify(lin)
@@ -117,13 +118,14 @@ def paint(log_rgb, style, space='gen5'):
     red = smax >= CLIP_STOPS
     orange = (smax >= WARN_STOPS) & ~red
     purple = s < -5
-    green = (s >= -0.5) & (s < 4 / 3)
+    lo, hi = -0.5 + shift, 4 / 3 + shift
+    green = (s >= lo) & (s < hi)
     line = np.abs(s) < 1 / 6
     if style == 'map':
-        blue = (s >= -5) & (s < -0.5)
-        yellow = (s >= 4 / 3) & (smax < WARN_STOPS)
+        blue = (s >= -5) & (s < lo)
+        yellow = (s >= hi) & (smax < WARN_STOPS)
         # blue gets darker the deeper it goes: -5 dim, -1/2 bright
-        bshade = np.clip((s + 5) / 4.5, 0, 1)[..., None]
+        bshade = np.clip((s + 5) / max(lo + 5, 0.5), 0, 1)[..., None]
         bv = np.array(COL['blue']) * (0.45 + 0.55 * bshade) * (0.80 + 0.30 * frac)[..., None]
         out[blue] = np.clip(bv, 0, 1)[blue]
         put(yellow, COL['yellow'])
@@ -137,16 +139,16 @@ def paint(log_rgb, style, space='gen5'):
 
 
 SPACE_NAMES = {'gen5': 'Blackmagic Film Gen 5', 'dwg': 'DaVinci Wide Gamut Intermediate'}
-VERSION = '1.1'
+VERSION = '1.2'
 
 
-def write_cube(path, style, n=33, space='gen5'):
+def write_cube(path, style, n=33, space='gen5', shift=0.0, label=None):
     g = np.linspace(0, 1, n)
     b, gg, r = np.meshgrid(g, g, g, indexing='ij')  # red changes fastest
     grid = np.stack([r, gg, b], axis=-1).reshape(-1, 3)
-    vals = paint(grid, style, space)
+    vals = paint(grid, style, space, shift)
     with open(path, 'w') as f:
-        f.write(f'TITLE "Cam Zone {style.title()} v{VERSION} - {SPACE_NAMES[space]}"\n')
+        f.write(f'TITLE "Cam Zone {label or style.title()} v{VERSION} - {SPACE_NAMES[space]}"\n')
         f.write(f'# Input: {SPACE_NAMES[space]}. Monitoring only, remove before export.\n')
         f.write(f'# Clip warning set for +{CLIP_STOPS:g} stops over middle gray (starting value)\n')
         f.write(f'LUT_3D_SIZE {n}\n')

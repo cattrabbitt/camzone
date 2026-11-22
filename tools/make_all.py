@@ -10,6 +10,11 @@ for space in ('gen5', 'dwg'):
         p = os.path.join(out, f'CamZone_{style.title()}_{names[space]}.cube')
         write_cube(p, style, space=space)
         print('wrote', os.path.basename(p), os.path.getsize(p) // 1024, 'KB')
+    # Mood versions of the Map: the green "on target" range moves down for darker looks
+    for label, shift in (('Moody', -1.0), ('LowKey', -1.5)):
+        p = os.path.join(out, f'CamZone_Map_{label}_{names[space]}.cube')
+        write_cube(p, 'map', space=space, shift=shift, label=f'Map {label}')
+        print('wrote', os.path.basename(p), os.path.getsize(p) // 1024, 'KB')
 
 # check: gray patches at known stops land in the right color, for both inputs
 enc = {'gen5': gen5_encode, 'dwg': di_encode}

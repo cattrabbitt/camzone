@@ -47,6 +47,6 @@ jobs:
         run: |
           gh release delete latest --yes --cleanup-tag || true
           (cd luts && zip -q ../CamZone_LUTs.zip CamZone_*.cube CamZone_Legend.png "Install CamZone LUTs in Resolve.bat")
-          gh release create latest CamZone.apk version.txt CamZone_LUTs.zip luts/CamZone_Map_Gen5.cube luts/CamZone_Guard_Gen5.cube luts/CamZone_Map_DWG.cube luts/CamZone_Guard_DWG.cube luts/CamZone_Legend.png \
+          gh release create latest CamZone.apk version.txt CamZone_LUTs.zip luts/CamZone_Map_Gen5.cube luts/CamZone_Map_Moody_Gen5.cube luts/CamZone_Map_LowKey_Gen5.cube luts/CamZone_Guard_Gen5.cube luts/CamZone_Map_DWG.cube luts/CamZone_Guard_DWG.cube luts/CamZone_Legend.png \
             --title "Cam Zone (latest build)" \
-            --notes "Install CamZone.apk on the Pixel. PYXIS: load the two _Gen5 .cube files. Resolve: unzip CamZone_LUTs.zip and run the Install bat."
+            --notes "Install CamZone.apk on the Pixel. PYXIS: load the _Gen5 .cube files (Map, Map Moody, Map LowKey, Guard). Resolve: unzip CamZone_LUTs.zip and run the Install bat."
