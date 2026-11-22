@@ -83,6 +83,7 @@ class PyxisBle(private val context: Context) : CameraLink {
     private val writes = LinkedList<ByteArray>()
     private var writing = false
     private var scanCallback: ScanCallback? = null
+    private var retries = 0
 
     val available get() = adapter?.isEnabled == true
 
@@ -93,15 +94,23 @@ class PyxisBle(private val context: Context) : CameraLink {
         }
         stopScan()
         val seen = mutableSetOf<String>()
+        fun looksLikeCamera(name: String?) = name != null &&
+            listOf("pyxis", "blackmagic", "pocket", "cinema", "ursa", "bmpcc").any { name.lowercase().contains(it) }
+        // Cameras already paired with this phone show up right away (a paired camera may not advertise again)
+        adapter?.bondedDevices?.forEach { d ->
+            if (looksLikeCamera(d.name) && seen.add(d.address)) onFound(Found(d, (d.name ?: d.address) + " (paired)"))
+        }
         val cb = object : ScanCallback() {
             override fun onScanResult(callbackType: Int, result: ScanResult) {
                 val d = result.device
-                if (seen.add(d.address)) onFound(Found(d, d.name ?: result.scanRecord?.deviceName ?: d.address))
+                val name = d.name ?: result.scanRecord?.deviceName
+                val hasService = result.scanRecord?.serviceUuids?.any { it.uuid == SERVICE } == true
+                if ((hasService || looksLikeCamera(name)) && seen.add(d.address)) onFound(Found(d, name ?: d.address))
             }
         }
         scanCallback = cb
-        val filter = ScanFilter.Builder().setServiceUuid(ParcelUuid(SERVICE)).build()
-        scanner.startScan(listOf(filter), ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build(), cb)
+        // No filter: some cameras don't put the service ID in their advert, so match by name too
+        scanner.startScan(null, ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build(), cb)
         status("Searching for the PYXIS…")
         handler.postDelayed({ stopScan() }, 15000)
     }
@@ -132,6 +141,7 @@ class PyxisBle(private val context: Context) : CameraLink {
                 androidx.core.content.ContextCompat.RECEIVER_EXPORTED,
             )
         } catch (_: Exception) { }
+        retries = 0
         AppState.link.value = LinkState(LinkType.BLUETOOTH, false, found.name, "Connecting…")
         gatt = found.device.connectGatt(context, false, callback, BluetoothDevice.TRANSPORT_LE)
     }
@@ -158,7 +168,16 @@ class PyxisBle(private val context: Context) : CameraLink {
                 status("Connected. Reading the camera…")
                 g.discoverServices()
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                AppState.link.value = AppState.link.value.copy(connected = false, status = "Disconnected")
+                if (!AppState.link.value.connected && st != 0 && retries < 2) {
+                    // Android often fails the first connection (code 133); try again
+                    retries++
+                    status("Retrying connection…")
+                    g.close()
+                    handler.postDelayed({ gatt = g.device.connectGatt(context, false, this, BluetoothDevice.TRANSPORT_LE) }, 800)
+                    return
+                }
+                AppState.link.value = AppState.link.value.copy(connected = false,
+                    status = if (st != 0) "Couldn't connect (code $st). On the PYXIS, open Setup > Bluetooth and make sure it's on, then tap Find again." else "Disconnected")
                 AppState.settingsFromCamera.value = false
             }
         }
