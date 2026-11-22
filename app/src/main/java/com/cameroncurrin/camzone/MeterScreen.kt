@@ -88,6 +88,7 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
     var picker by remember { mutableStateOf<PyxisParam?>(null) }
     var phonePick by remember { mutableStateOf<PyxisParam?>(null) }
     var panel by remember { mutableStateOf<String?>(null) }
+    var calMsg by remember { mutableStateOf("") }
     val full by AppState.fullFeed.collectAsState()
     val lensNote by AppState.lensNote.collectAsState()
     val matchImg by Match.image.collectAsState()
@@ -219,16 +220,50 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
             }
             // Setting buttons on the feed, right edge
             Column(Modifier.align(Alignment.TopEnd).padding(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                (listOf("Phone", "Tools", "View") + if (matchImg != null) listOf("Match") else emptyList()).forEach { n ->
+                (listOf("Phone", "Tools", "View", "Cal") + if (matchImg != null) listOf("Match") else emptyList()).forEach { n ->
                     FeedButton(n, panel == n) { panel = if (panel == n) null else n }
                 }
                 FeedButton(if (full) "Exit" else "Full", full) { AppState.fullFeed.value = !full }
+            }
+            if (panel == "Cal") {
+                // Calibration target: the phone measures inside this circle
+                Canvas(Modifier.matchParentSize()) {
+                    val r = size.width * 4f / (frame?.width ?: 240).coerceAtLeast(1) * 1.4f
+                    drawCircle(Color.White, radius = r, center = center, style = androidx.compose.ui.graphics.drawscope.Stroke(4f))
+                    drawCircle(Color.Black, radius = r + 4f, center = center, style = androidx.compose.ui.graphics.drawscope.Stroke(2f))
+                }
             }
             if (panel != null) {
                 FeedPanel(Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(0.5f), onDismiss = { panel = null }) {
                     when (panel) {
                         "Phone" -> PhoneControlsBody(lenses)
                         "Tools" -> ToolsRow()
+                        "Cal" -> {
+                            Text("Calibrate with the gray card", color = Color.White, fontWeight = FontWeight.Bold)
+                            if (phoneOnly) Text("Connect the PYXIS first: calibration matches the phone to the camera.", color = Color(0xFFFF8500), fontSize = 13.sp)
+                            Text("1. Check these match the PYXIS: ISO ${settings.iso} · ${fmt(settings.shutterAngle)}° · ${fmt(settings.fps)} fps · ${Expo.formatT(settings.tStop)}" +
+                                (if (settings.nd > 0) " · ${Expo.ndName(settings.nd)}" else "") + ". If not, tap them in the top strip.",
+                                color = Color(0xFFDDDDDD), fontSize = 13.sp)
+                            Text("2. On the PYXIS, set the iris so the card is middle gray (light green on the Map LUT, green on false color).", color = Color(0xFFDDDDDD), fontSize = 13.sp)
+                            Text("3. Put the card inside the white circle and tap Calibrate.", color = Color(0xFFDDDDDD), fontSize = 13.sp)
+                            val fr = frame
+                            if (fr != null && !phoneOnly) {
+                                val now = Expo.stopsAt(meter.sample(fr, 0.5f, 0.5f, radius = 4) + cal, settings)
+                                Text("Circle reads ${Expo.formatStops(now)} (should be 0 after calibrating)", color = Color(Expo.zone(now).argb), fontWeight = FontWeight.SemiBold, fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp))
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)) {
+                                Button(enabled = !phoneOnly, onClick = {
+                                    val f = AppState.frame.value
+                                    if (f == null) calMsg = "No camera view yet." else {
+                                        AppState.calibration.value = Expo.grayEv(settings) - meter.sample(f, 0.5f, 0.5f, radius = 4)
+                                        AppState.save()
+                                        calMsg = "Calibrated. Offset ${Expo.formatStops(AppState.calibration.value)} stops."
+                                    }
+                                }) { Text("Calibrate") }
+                                OutlinedButton(onClick = { AppState.calibration.value = 0.0; AppState.save(); calMsg = "Reset." }) { Text("Reset") }
+                            }
+                            if (calMsg.isNotEmpty()) Text(calMsg, color = Color(0xFF7BE38C), fontSize = 13.sp)
+                        }
                         "Match" -> {
                             val rr = matchRead
                             if (rr != null) {
@@ -349,7 +384,7 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = { showCal = true }) { Text(if (cal == 0.0) "Calibrate with gray card" else "Recalibrate") }
+            OutlinedButton(onClick = { panel = "Cal"; calMsg = "" }) { Text(if (cal == 0.0) "Calibrate with gray card" else "Recalibrate") }
             OutlinedButton(onClick = { AppState.face.value = null; keyPt = null; fillPt = null }) { Text("Clear") }
         }
         Text(
