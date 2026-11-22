@@ -94,6 +94,12 @@ object AppState {
     }
 
     /** Called by the Bluetooth or network link when the camera reports a value. */
+    /** Last messages from the camera, newest first, for checking the connection. */
+    val cameraLog = MutableStateFlow<List<String>>(emptyList())
+    fun logCamera(line: String) { cameraLog.value = (listOf(line) + cameraLog.value).take(25) }
+    /** Set when the camera stops reporting a usable iris (manual lens, lens off). */
+    val lensNote = MutableStateFlow<String?>(null)
+
     fun fromCamera(iso: Int? = null, angle: Double? = null, fps: Double? = null, t: Double? = null) {
         settings.update { s ->
             s.copy(

@@ -56,6 +56,14 @@ fun LinkScreen(ble: PyxisBle, rest: PyxisRest) {
             }
         }
 
+        Section("What the camera is sending") {
+            val log by AppState.cameraLog.collectAsState()
+            Text("Change a setting on the PYXIS: a new line should appear here within a second. If nothing appears, tap Refresh.",
+                color = Color(0xFF9A9A9A), fontSize = 12.sp)
+            OutlinedButton(onClick = { ble.refresh() }, modifier = Modifier.padding(vertical = 6.dp)) { Text("Refresh from camera") }
+            if (log.isEmpty()) Text("Nothing yet.", color = Color(0xFFCCCCCC), fontSize = 13.sp)
+            log.forEach { Text(it, color = Color(0xFFCCCCCC), fontSize = 13.sp) }
+        }
         Section("Bluetooth (easiest)") {
             Text(
                 "On the PYXIS: Menu → Setup → turn Bluetooth on. Then tap Find PYXIS. The first time, " +

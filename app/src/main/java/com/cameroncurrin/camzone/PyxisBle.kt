@@ -132,9 +132,17 @@ class PyxisBle(private val context: Context) : CameraLink {
         }
     }
 
+    private var lastFound: Found? = null
+    private var wanted = false
+
+    /** Reconnects to the same camera: the camera sends all its current settings again on connect. */
+    override fun refresh() { lastFound?.let { connect(it) } }
+
     fun connect(found: Found) {
+        lastFound = found
         stopScan()
         disconnect()
+        wanted = true
         try {
             androidx.core.content.ContextCompat.registerReceiver(
                 context, bondReceiver, IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
@@ -147,6 +155,7 @@ class PyxisBle(private val context: Context) : CameraLink {
     }
 
     override fun disconnect() {
+        wanted = false
         gatt?.disconnect()
         gatt?.close()
         gatt = null
@@ -176,6 +185,17 @@ class PyxisBle(private val context: Context) : CameraLink {
                     handler.postDelayed({ gatt = g.device.connectGatt(context, false, this, BluetoothDevice.TRANSPORT_LE) }, 800)
                     return
                 }
+                val wasConnected = AppState.link.value.connected
+                if (wasConnected && wanted && retries < 3) {
+                    // Dropped while working (e.g. during a lens change): reconnect by itself
+                    retries++
+                    AppState.link.value = AppState.link.value.copy(connected = false, status = "Connection dropped. Reconnecting…")
+                    AppState.logCamera("Connection dropped (code $st), reconnecting")
+                    g.close()
+                    handler.postDelayed({ gatt = g.device.connectGatt(context, false, this, BluetoothDevice.TRANSPORT_LE) }, 1000)
+                    return
+                }
+                AppState.logCamera("Disconnected (code $st)")
                 AppState.link.value = AppState.link.value.copy(connected = false,
                     status = if (st != 0) "Couldn't connect (code $st). On the PYXIS, open Setup > Bluetooth and make sure it's on, then tap Find again." else "Disconnected")
                 AppState.settingsFromCamera.value = false
@@ -199,7 +219,9 @@ class PyxisBle(private val context: Context) : CameraLink {
 
         override fun onDescriptorWrite(g: BluetoothGatt, d: BluetoothGattDescriptor, st: Int) {
             if (st == BluetoothGatt.GATT_SUCCESS) {
+                retries = 0
                 AppState.link.value = AppState.link.value.copy(connected = true, status = "Connected over Bluetooth")
+                AppState.logCamera("Connected, listening for camera settings")
             } else {
                 status("Connected, but the camera didn't share its settings (code $st). Try pairing again.")
             }
@@ -250,15 +272,26 @@ class PyxisBle(private val context: Context) : CameraLink {
                 val data = ByteBuffer.wrap(b, o + 8, len - 4).order(ByteOrder.LITTLE_ENDIAN)
                 when {
                     cat == 0 && par == 2 && len - 4 >= 2 -> {
-                        val av = data.short / 2048.0
-                        AppState.fromCamera(t = sqrt(2.0.pow(av)))
+                        val raw = data.short.toInt()
+                        val t = sqrt(2.0.pow(raw / 2048.0))
+                        // Lens off, or a lens with no electronic iris: ignore impossible values and keep the last good one
+                        if (raw != 0 && t in 0.9..45.0) {
+                            AppState.fromCamera(t = t)
+                            AppState.lensNote.value = null
+                            AppState.logCamera("Iris ${Expo.formatT(t)}")
+                        } else {
+                            AppState.lensNote.value = "The camera isn't reporting the iris (lens off or a manual lens). Tap Iris and set it by hand."
+                            AppState.logCamera("Iris: no lens data")
+                        }
                     }
-                    cat == 1 && par == 14 && len - 4 >= 4 -> AppState.fromCamera(iso = data.int)
-                    cat == 1 && par == 11 && len - 4 >= 4 -> AppState.fromCamera(angle = data.int / 100.0)
+                    cat == 1 && par == 14 && len - 4 >= 4 -> { val v = data.int; if (v in 50..51200) AppState.fromCamera(iso = v); AppState.logCamera("ISO $v") }
+                    cat == 1 && par == 11 && len - 4 >= 4 -> { val v = data.int / 100.0; if (v in 1.0..360.0) AppState.fromCamera(angle = v); AppState.logCamera("Shutter ${v}°") }
                     cat == 1 && par == 9 && len - 4 >= 2 -> {
                         val fps = data.short.toInt()
                         if (fps in 1..240) AppState.fromCamera(fps = fps.toDouble())
+                        AppState.logCamera("Frame rate $fps")
                     }
+                    else -> AppState.logCamera("Other setting $cat.$par")
                 }
             }
             val total = 4 + len
@@ -303,4 +336,6 @@ interface CameraLink {
     fun setIso(iso: Int)
     fun setShutterAngle(angle: Double)
     fun disconnect()
+    /** Ask the camera for its current settings again. */
+    fun refresh() {}
 }

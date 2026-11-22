@@ -48,7 +48,7 @@ enum class PyxisParam(val label: String) { ISO("ISO"), SHUTTER("Shutter"), FPS("
 
 /** The PYXIS settings as big tap targets. Tap one for presets and a slider. */
 @Composable
-fun PyxisStrip(s: CamSettings, status: String, statusColor: Color, onPick: (PyxisParam) -> Unit, onMore: () -> Unit) {
+fun PyxisStrip(s: CamSettings, status: String, statusColor: Color, onPick: (PyxisParam) -> Unit, onMore: () -> Unit, onRefresh: (() -> Unit)? = null) {
     Column(Modifier.fillMaxWidth().background(Color(0xFF1B1B1B), RoundedCornerShape(10.dp)).padding(horizontal = 6.dp, vertical = 6.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Cell("ISO", "${s.iso}") { onPick(PyxisParam.ISO) }
@@ -59,6 +59,7 @@ fun PyxisStrip(s: CamSettings, status: String, statusColor: Color, onPick: (Pyxi
         }
         Row(Modifier.fillMaxWidth().padding(start = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(status, color = statusColor, fontSize = 12.sp, modifier = Modifier.weight(1f))
+            if (onRefresh != null) TextButton(onClick = onRefresh) { Text("Refresh", fontSize = 12.sp) }
             TextButton(onClick = onMore) { Text("Lens & more", fontSize = 12.sp) }
         }
     }

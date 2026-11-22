@@ -89,6 +89,7 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
     var phonePick by remember { mutableStateOf<PyxisParam?>(null) }
     var panel by remember { mutableStateOf<String?>(null) }
     val full by AppState.fullFeed.collectAsState()
+    val lensNote by AppState.lensNote.collectAsState()
     val matchImg by Match.image.collectAsState()
     val matchRead by Match.read.collectAsState()
     val ghost by Match.ghost.collectAsState()
@@ -130,11 +131,15 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
     val settingsStrip: @Composable () -> Unit = {
         if (phoneOnly) PhoneStrip(phone, meter.aperture, onPick = { phonePick = it }, onConnect = null) else PyxisStrip(
             settings,
-            if (linkState.connected) "Live from ${linkState.name} · tap a setting to change it" else if (fromCamera) "Last read from camera" else "Not connected · tap a setting to set it",
-            if (linkState.connected) Color(0xFF29B83D) else Color(0xFF9A9A9A),
+            lensNote ?: if (linkState.connected) "Live from ${linkState.name} · tap a setting to change it" else if (fromCamera) "Last read from camera" else "Not connected · tap a setting to set it",
+            if (lensNote != null) Color(0xFFFF8500) else if (linkState.connected) Color(0xFF29B83D) else Color(0xFF9A9A9A),
             onPick = { picker = it },
             onMore = { showSettings = true },
+            onRefresh = { link()?.refresh() },
         )
+        if (phoneOnly && linkState.type == LinkType.BLUETOOTH && linkState.status.isNotBlank()) {
+            Text("PYXIS: ${linkState.status}", color = Color(0xFFFF8500), fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+        }
     }
     val previewBox: @Composable (Modifier) -> Unit = { m ->
         // Camera view with zone overlay
