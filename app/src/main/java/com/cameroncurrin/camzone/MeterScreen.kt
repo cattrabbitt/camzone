@@ -90,6 +90,10 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
     var panel by remember { mutableStateOf<String?>(null) }
     var calMsg by remember { mutableStateOf("") }
     var zoom by remember { mutableStateOf(1f) }
+    var showLens by remember { mutableStateOf(false) }
+    val lensList by AppState.lenses.collectAsState()
+    val lensIdx by AppState.lensIndex.collectAsState()
+    val lensOn = lensList.getOrNull(lensIdx)
     val full by AppState.fullFeed.collectAsState()
     val lensNote by AppState.lensNote.collectAsState()
     val matchImg by Match.image.collectAsState()
@@ -121,6 +125,9 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
     // Connected: the colors describe what the PYXIS records.
     val phoneOnly = !linkState.connected
     SideEffect { Expo.phoneMode = phoneOnly; Expo.greenShift = look.shift }
+    // Iris slider on the picture: a manual lens, or the camera isn't reporting the iris
+    val showIris = !phoneOnly && panel == null && (lensOn?.manual == true || lensNote != null)
+    val bottomPad = if (showIris) 72.dp else 8.dp
     val vs: CamSettings = if (!phoneOnly) settings else {
         // Settings whose middle gray equals the phone's actual exposure (calibration folded in so it cancels out)
         val sec = Expo.shutterSeconds(phone.shutterAngle, phone.fps)
@@ -138,6 +145,8 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
             onPick = { picker = it },
             onMore = { showSettings = true },
             onRefresh = { link()?.refresh() },
+            lensName = lensList.getOrNull(lensIdx)?.name?.let { "Lens: " + it.substringBefore(" f/") },
+            onLens = { showLens = true },
         )
         if (phoneOnly && linkState.type == LinkType.BLUETOOTH && linkState.status.isNotBlank()) {
             Text("PYXIS: ${linkState.status}", color = Color(0xFFFF8500), fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
@@ -224,7 +233,7 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
                 if (fa != null && panel == null) {
                     val aimEv = meter.sample(fa, 0.5f, 0.5f, radius = 4) + cal
                     val aimSt = Expo.stopsAt(aimEv, vs)
-                    Row(Modifier.align(Alignment.BottomCenter).padding(8.dp), verticalAlignment = Alignment.CenterVertically,
+                    Row(Modifier.align(Alignment.BottomCenter).padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = bottomPad), verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Aim " + Expo.formatStops(aimSt), color = Color(Expo.zone(aimSt).argb), fontWeight = FontWeight.Bold, fontSize = 15.sp,
                             modifier = Modifier.background(Color(0x99000000), RoundedCornerShape(6.dp)).padding(horizontal = 8.dp, vertical = 4.dp))
@@ -234,7 +243,9 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
             }
             // Phone zoom, bottom-left (zooms the preview and the readings together)
             if (panel == null) {
-                Column(Modifier.align(Alignment.BottomStart).padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                if (showIris) IrisBar(lensOn ?: Lens("Lens", AppState.widestT.value, AppState.narrowestT.value, true), settings,
+                    Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(6.dp))
+                Column(Modifier.align(Alignment.BottomStart).padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = bottomPad), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf(1f, 2f, 4f).forEach { z ->
                         FeedButton(if (z == 1f) "1×" else "${z.toInt()}×", zoom == z) { zoom = z; meter.setZoom(z) }
                     }
@@ -288,6 +299,7 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
                                     val f = AppState.frame.value
                                     if (f == null) calMsg = "No camera view yet." else {
                                         AppState.calibration.value = Expo.grayEv(settings) - meter.sample(f, 0.5f, 0.5f, radius = 4)
+                                        LensKit.saveCal(AppState.calibration.value)
                                         AppState.save()
                                         calMsg = "Calibrated. Offset ${Expo.formatStops(AppState.calibration.value)} stops."
                                     }
@@ -448,6 +460,7 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
 
     picker?.let { pp -> PyxisPicker(pp, settings, link()) { picker = null } }
     phonePick?.let { pp -> PhonePicker(pp, phone) { phonePick = null } }
+    if (showLens) LensPicker { showLens = false }
     if (showSettings) SettingsDialog(settings) { showSettings = false }
     if (showCal) CalibrateDialog(meter, settings) { showCal = false }
 }

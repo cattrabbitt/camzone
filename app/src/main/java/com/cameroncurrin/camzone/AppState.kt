@@ -36,6 +36,9 @@ object AppState {
     val look = MutableStateFlow(Look.NORMAL)
     val widestT = MutableStateFlow(1.8)
     val narrowestT = MutableStateFlow(22.0)
+    val lenses = MutableStateFlow(LensKit.defaults)
+    /** Which lens is on (-1 = not chosen). */
+    val lensIndex = MutableStateFlow(-1)
     val frame = MutableStateFlow<ZoneFrame?>(null)
     val face = MutableStateFlow<Spot?>(null)
     val spotB = MutableStateFlow<Spot?>(null)
@@ -60,6 +63,8 @@ object AppState {
         calibration.value = p.getFloat("cal", 0f).toDouble()
         widestT.value = p.getFloat("widest", 1.8f).toDouble()
         narrowestT.value = p.getFloat("narrowest", 22f).toDouble()
+        lenses.value = LensKit.load(p.getString("lenses", null))
+        lensIndex.value = p.getInt("lens", -1)
         look.value = Look.values()[p.getInt("look", 0).coerceIn(0, Look.values().size - 1)]
         p.getString("kit", null)?.let { k ->
             kit.value = k.split(',').mapNotNull { n -> Gear.values().firstOrNull { it.name == n } }.toSet()
@@ -82,6 +87,8 @@ object AppState {
             .putFloat("cal", calibration.value.toFloat())
             .putFloat("widest", widestT.value.toFloat())
             .putFloat("narrowest", narrowestT.value.toFloat())
+            .putString("lenses", LensKit.save(lenses.value))
+            .putInt("lens", lensIndex.value)
             .putInt("look", look.value.ordinal)
             .putInt("iso", s.iso)
             .putFloat("angle", s.shutterAngle.toFloat())
