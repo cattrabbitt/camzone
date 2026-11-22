@@ -1,5 +1,6 @@
 package com.cameroncurrin.camzone
 
+import androidx.compose.foundation.clickable
 import kotlin.math.pow
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.DisposableEffect
@@ -80,7 +81,8 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
     val narrowest by AppState.narrowestT.collectAsState()
     val applyStatus by AppState.applyStatus.collectAsState()
 
-    var mode by remember { mutableStateOf(Mode.ZONES) }
+    // One view: the phone shows exactly what the CamZone Map LUT shows on the PYXIS
+    val mode = Mode.ZONES
     var keyPt by remember { mutableStateOf<Spot?>(null) }
     var fillPt by remember { mutableStateOf<Spot?>(null) }
     var showSettings by remember { mutableStateOf(false) }
@@ -90,6 +92,7 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
     var panel by remember { mutableStateOf<String?>(null) }
     var calMsg by remember { mutableStateOf("") }
     var zoom by remember { mutableStateOf(1f) }
+    var meterRead by remember { mutableStateOf<List<String>?>(null) }
     var showLens by remember { mutableStateOf(false) }
     val lensList by AppState.lenses.collectAsState()
     val lensIdx by AppState.lensIndex.collectAsState()
@@ -177,21 +180,20 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
                         }
                     }
                     .pointerInput(mode) {
-                    detectTapGestures { pos ->
-                        val fr = AppState.frame.value ?: return@detectTapGestures
-                        val x = pos.x / size.width
-                        val y = pos.y / size.height
-                        val ev = meter.sample(fr, x, y) + AppState.calibration.value
-                        when (mode) {
-                            Mode.SPOT, Mode.ZONES -> AppState.face.value = Spot(ev, x, y)
-                            Mode.CONTRAST -> if (keyPt == null || fillPt != null) {
-                                keyPt = Spot(ev, x, y); fillPt = null
-                            } else {
-                                fillPt = Spot(ev, x, y)
-                            }
-                        }
-                        Unit
-                    }
+                    // Tap = the face (key side). Press and hold = the shadow side, for the contrast ratio.
+                    detectTapGestures(
+                        onTap = { pos ->
+                            val fr = AppState.frame.value ?: return@detectTapGestures
+                            val x = pos.x / size.width; val y = pos.y / size.height
+                            val sp = Spot(meter.sample(fr, x, y) + AppState.calibration.value, x, y)
+                            AppState.face.value = sp; keyPt = sp
+                        },
+                        onLongPress = { pos ->
+                            val fr = AppState.frame.value ?: return@detectTapGestures
+                            val x = pos.x / size.width; val y = pos.y / size.height
+                            fillPt = Spot(meter.sample(fr, x, y) + AppState.calibration.value, x, y)
+                        },
+                    )
                 },
             ) {
                 if (bmp != null) {
@@ -199,7 +201,7 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
                         bmp.asImageBitmap(),
                         dstOffset = IntOffset.Zero,
                         dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt()),
-                        alpha = if (mode == Mode.ZONES) 0.9f else 1f,
+                        alpha = 1f,
                         filterQuality = FilterQuality.Low,
                     )
                 }
@@ -220,7 +222,7 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
             }
             // Aiming target: in Spot mode, point the center at something and tap Lock (or tap anywhere as before)
             val fa = frame
-            if (mode == Mode.SPOT && panel != "Cal") {
+            if (panel != "Cal") {
                 Canvas(Modifier.matchParentSize()) {
                     val r = size.width * 0.03f
                     val w = 3f
@@ -239,6 +241,23 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
                             modifier = Modifier.background(Color(0x99000000), RoundedCornerShape(6.dp)).padding(horizontal = 8.dp, vertical = 4.dp))
                         Button(onClick = { AppState.face.value = Spot(aimEv, 0.5f, 0.5f) }) { Text("Lock as face") }
                     }
+                }
+            }
+            // Light meter button, bottom-right: reads what's in the target and gives the stops
+            if (panel == null && fa != null) {
+                Box(
+                    Modifier.align(Alignment.BottomEnd).padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = bottomPad).size(64.dp)
+                        .background(Color(0xEE29B83D), androidx.compose.foundation.shape.CircleShape)
+                        .clickable { meterRead = lightMeter(meter.sample(fa, 0.5f, 0.5f, radius = 4) + cal, vs, look, phoneOnly, AppState.widestT.value, AppState.narrowestT.value) },
+                    contentAlignment = Alignment.Center,
+                ) { Text("METER", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp) }
+            }
+            meterRead?.let { lines ->
+                Column(Modifier.align(Alignment.TopCenter).padding(top = 8.dp, start = 56.dp, end = 64.dp)
+                    .background(Color(0xE6000000), RoundedCornerShape(10.dp)).clickable { meterRead = null }.padding(10.dp)) {
+                    Text(lines.first(), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    lines.drop(1).forEach { Text(it, color = Color(0xFFDDDDDD), fontSize = 13.sp) }
+                    Text("Tap to close", color = Color(0xFF888888), fontSize = 11.sp)
                 }
             }
             // Phone zoom, bottom-left (zooms the preview and the readings together)
@@ -328,13 +347,7 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
                             }
                         }
                         else -> {
-                            Text("Mode", color = Color(0xFF9A9A9A), fontSize = 12.sp)
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Mode.values().forEach { md ->
-                                    FilterChip(selected = mode == md, onClick = { mode = md }, label = { Text(md.label) })
-                                }
-                            }
-                            Text("Look", color = Color(0xFF9A9A9A), fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
+                            Text("Which CamZone LUT is on the PYXIS (the phone shows the same one)", color = Color(0xFF9A9A9A), fontSize = 12.sp)
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Look.values().forEach { l ->
                                     FilterChip(selected = look == l, onClick = { AppState.look.value = l; AppState.save() }, label = { Text(l.label) })
@@ -355,13 +368,18 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
         if (tools.histogram) StopHistogram(f = frame, s = vs, cal = cal)
         Spacer(Modifier.height(6.dp))
         // Readouts
-        if (mode == Mode.CONTRAST) {
+        run {
             val k = keyPt
             val fl = fillPt
-            ReadoutCard(
+            face?.let {
+                val s = Expo.stopsAt(it.ev, vs)
+                val z = Expo.zone(s)
+                ReadoutCard("Face ${Expo.formatStops(s)} stops · ${z.label}", Color(z.argb))
+            }
+            if (k != null || fl != null) ReadoutCard(
                 when {
                     k == null -> "Tap the bright (key) side of the face"
-                    fl == null -> "Key ${Expo.formatStops(Expo.stopsAt(k.ev, vs))}. Now tap the shadow (fill) side"
+                    fl == null -> "Press and hold the shadow side of the face for the contrast ratio"
                     else -> {
                         val d = k.ev - fl.ev
                         "Contrast ${Expo.ratio(d)} · ${Expo.formatStops(abs(d)).removePrefix("+")} stops\n" +
@@ -370,12 +388,6 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
                     }
                 },
             )
-        } else {
-            face?.let {
-                val s = Expo.stopsAt(it.ev, vs)
-                val z = Expo.zone(s)
-                ReadoutCard("Face ${Expo.formatStops(s)} stops · ${z.label}", Color(z.argb))
-            }
         }
 
         // Advice
@@ -621,5 +633,35 @@ fun CalibrateDialog(meter: PhoneMeter, s: CamSettings, onClose: () -> Unit) {
                 TextButton(onClick = onClose) { Text("Close") }
             }
         },
+    )
+}
+
+
+/**
+ * Classic spot meter on whatever is in the target: the stops it sits at now, the EV and light level,
+ * and the iris (or ISO) that puts it at middle gray and at the Look's face target.
+ */
+fun lightMeter(ev: Double, s: CamSettings, look: Look, phoneOnly: Boolean, widest: Double, narrowest: Double): List<String> {
+    val now = Expo.stopsAt(ev, s)
+    val ev100 = ev
+    val lux = 2.5 * 2.0.pow(ev100)            // reflected reading of an average (18%) subject
+    val fc = lux / 10.76
+    val target = AppState.matchTarget.value ?: look.target
+    fun irisFor(t: Double): String {
+        val need = Expo.tStopFor(ev, t, s)
+        val r = Expo.roundT(need)
+        return when {
+            phoneOnly -> "phone ISO " + (s.iso / 2.0.pow(Expo.stopsAt(ev, s) - t)).roundToInt()
+            need < widest * 0.97 -> "${Expo.formatT(widest)} wide open is ${Expo.formatStops(Expo.stopsBetween(need, widest)).removePrefix("+")} short: add light or ISO 3200"
+            need > narrowest * 1.03 -> "past ${Expo.formatT(narrowest)}: add ND ${Expo.ndName(Expo.stopsBetween(narrowest, need))}"
+            else -> Expo.formatT(r) + (if (s.nd > 0) " (with ${Expo.ndName(s.nd)})" else "")
+        }
+    }
+    return listOf(
+        "${Expo.formatStops(now)} stops · ${Expo.zone(now).label}",
+        "EV ${"%.1f".format(ev100)} · about ${fc.roundToInt()} fc (${lux.roundToInt()} lux) on an average surface",
+        "Middle gray (0): ${irisFor(0.0)}",
+        "As a face at ${Expo.formatStops(target)}: ${irisFor(target)}",
+        "At ISO ${s.iso}, ${fmt(s.shutterAngle)}°, ${fmt(s.fps)} fps",
     )
 }

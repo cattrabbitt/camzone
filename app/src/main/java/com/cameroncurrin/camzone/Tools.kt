@@ -44,7 +44,7 @@ fun renderOverlay(f: ZoneFrame, s: CamSettings, cal: Double, zones: Boolean, too
         for (x in 0 until w) {
             val i = y * w + x
             val st = f.ev[i] + cal - gray
-            var c = if (zones) Expo.shadedColor(st) else {
+            var c = if (zones) Expo.lutColor(st) else {
                 // gray monitor: middle gray at 50%, gentle roll-off at both ends
                 val v = (255 / (1 + 2.0.pow(-st * 0.6))).toInt().coerceIn(0, 255)
                 (0xFF shl 24) or (v shl 16) or (v shl 8) or v

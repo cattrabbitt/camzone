@@ -88,6 +88,38 @@ object Expo {
         return (0xFF shl 24) or (r shl 16) or (g shl 8) or b
     }
 
+    /**
+     * The color the CamZone Map LUT paints at [st] stops from middle gray: the same ranges, the dim gray base,
+     * the stop-by-stop shading and the darker-the-deeper blue as tools/build_luts.py. Luminance only (the LUT
+     * also warns when a single color channel clips, which the phone can't see).
+     */
+    fun lutColor(st: Double): Int {
+        val y = 0.18 * 2.0.pow(st)
+        val k = 0.794
+        val luma = (y * k / (1 + y * k)).pow(1 / 2.4).coerceIn(0.0, 1.0)
+        val frac = st - floor(st)
+        val shade = 0.80 + 0.30 * frac
+        fun rgb(r: Double, g: Double, b: Double): Int {
+            val R = (r.coerceIn(0.0, 1.0) * 255).roundToInt(); val G = (g.coerceIn(0.0, 1.0) * 255).roundToInt(); val B = (b.coerceIn(0.0, 1.0) * 255).roundToInt()
+            return (0xFF shl 24) or (R shl 16) or (G shl 8) or B
+        }
+        fun tex(r: Double, g: Double, b: Double): Int { val m = shade * (0.75 + 0.5 * luma); return rgb(r * m, g * m, b * m) }
+        val lo = GOOD_LOW; val hi = GOOD_HIGH
+        return when {
+            st >= CLIP -> rgb(0.92, 0.12, 0.10)
+            st >= WARN -> rgb(1.00, 0.52, 0.00)
+            st < -5 -> rgb(0.30, 0.06, 0.40)
+            abs(st) < 1.0 / 6.0 -> rgb(0.70, 1.00, 0.62)
+            st >= hi -> tex(0.98, 0.86, 0.12)
+            st >= lo -> tex(0.16, 0.72, 0.24)
+            else -> {
+                val bs = ((st + 5) / maxOf(lo + 5, 0.5)).coerceIn(0.0, 1.0)
+                val m = (0.45 + 0.55 * bs) * shade
+                rgb(0.12 * m, 0.38 * m, 0.92 * m)
+            }
+        }
+    }
+
     /** "+1⅓", "-⅔", "0" */
     fun formatStops(stops: Double): String {
         val thirds = (stops * 3).roundToInt()
