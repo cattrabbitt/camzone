@@ -70,7 +70,24 @@ COL = {
     'gray_line': (0.70, 1.00, 0.62),
     'blue': (0.12, 0.38, 0.92),
     'purple': (0.30, 0.06, 0.40),
+    'target': (0.15, 0.85, 1.00),
 }
+
+
+def look_display(lin_wg, style):
+    """A cinematic monitoring look: filmic contrast and roll-off ('film'), plus warm highlights and
+    teal shadows ('teal'). For judging lighting on set, not for baking in."""
+    rgb = np.clip(lin_wg @ WG_TO_709.T, 0, None)
+    Y = rgb @ np.array([0.2126, 0.7152, 0.0722])
+    # gentle desaturation, like film
+    rgb = Y[..., None] + (rgb - Y[..., None]) * 0.88
+    if style == 'teal':
+        w = np.clip(np.log2(np.maximum(Y, 1e-6) / GRAY) / 4 + 0.5, 0, 1)[..., None]   # 0 shadows .. 1 highlights
+        warm = np.array([1.06, 1.0, 0.90]); cool = np.array([0.90, 1.0, 1.08])
+        rgb = rgb * (cool * (1 - w) + warm * w)
+    x = rgb * 0.75
+    t = (x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14)   # filmic S-curve with soft highlight roll-off
+    return np.clip(t, 0, 1) ** (1 / 2.2)
 
 
 def display_rec709(lin_wg):
@@ -88,7 +105,7 @@ def classify(lin_wg):
     return np.log2(Y / GRAY), np.log2(mx / GRAY)
 
 
-def paint(log_rgb, style, space='gen5', shift=0.0):
+def paint(log_rgb, style, space='gen5', shift=0.0, target=1.0):
     """shift moves the green 'on target' range for a mood: 0 normal, -1 moody, -1.5 low-key."""
     dec, mtx = SPACES[space]
     lin = dec(log_rgb) @ mtx.T
@@ -100,8 +117,10 @@ def paint(log_rgb, style, space='gen5', shift=0.0):
     out = np.empty_like(log_rgb)
 
     gray_img = np.repeat((luma * 0.85)[..., None], 3, axis=-1)
-    if style == 'guard':
+    if style in ('guard', 'face'):
         out[:] = disp
+    elif style in ('film', 'teal'):
+        out[:] = look_display(lin, style)
     elif style == 'clean':
         out[:] = gray_img
     else:  # map: start from a dim gray picture
@@ -132,6 +151,9 @@ def paint(log_rgb, style, space='gen5', shift=0.0):
     if style in ('map', 'clean'):
         put(green, COL['green'])
         put(line, COL['gray_line'], texture=False)
+    if style == 'face':
+        # Face target band: skin at the mood's target shows cyan, so you can see the face land
+        put(np.abs(s - target) < 1 / 6, COL['target'], texture=False)
     put(purple, COL['purple'], texture=False)
     put(orange, COL['orange'], texture=False)
     put(red, COL['red'], texture=False)
@@ -139,14 +161,14 @@ def paint(log_rgb, style, space='gen5', shift=0.0):
 
 
 SPACE_NAMES = {'gen5': 'Blackmagic Film Gen 5', 'dwg': 'DaVinci Wide Gamut Intermediate'}
-VERSION = '1.2'
+VERSION = '1.3'
 
 
-def write_cube(path, style, n=33, space='gen5', shift=0.0, label=None):
+def write_cube(path, style, n=33, space='gen5', shift=0.0, label=None, target=1.0):
     g = np.linspace(0, 1, n)
     b, gg, r = np.meshgrid(g, g, g, indexing='ij')  # red changes fastest
     grid = np.stack([r, gg, b], axis=-1).reshape(-1, 3)
-    vals = paint(grid, style, space, shift)
+    vals = paint(grid, style, space, shift, target)
     with open(path, 'w') as f:
         f.write(f'TITLE "Cam Zone {label or style.title()} v{VERSION} - {SPACE_NAMES[space]}"\n')
         f.write(f'# Input: {SPACE_NAMES[space]}. Monitoring only, remove before export.\n')

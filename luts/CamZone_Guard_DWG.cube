@@ -1,4 +1,4 @@
-TITLE "Cam Zone Guard v1.2 - DaVinci Wide Gamut Intermediate"
+TITLE "Cam Zone Guard v1.3 - DaVinci Wide Gamut Intermediate"
 # Input: DaVinci Wide Gamut Intermediate. Monitoring only, remove before export.
 # Clip warning set for +6 stops over middle gray (starting value)
 LUT_3D_SIZE 33

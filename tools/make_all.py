@@ -15,6 +15,16 @@ for space in ('gen5', 'dwg'):
         p = os.path.join(out, f'CamZone_Map_{label}_{names[space]}.cube')
         write_cube(p, 'map', space=space, shift=shift, label=f'Map {label}')
         print('wrote', os.path.basename(p), os.path.getsize(p) // 1024, 'KB')
+    # Face LUTs: normal picture, warnings, and a cyan band where skin hits the mood's face target
+    for label, tgt in (('Face', 1.0), ('Face_Moody', 0.0), ('Face_LowKey', -0.5)):
+        p = os.path.join(out, f'CamZone_{label}_{names[space]}.cube')
+        write_cube(p, 'face', space=space, target=tgt, label=label.replace('_', ' '))
+        print('wrote', os.path.basename(p), os.path.getsize(p) // 1024, 'KB')
+    # Look LUTs: a cinematic picture to light to, with the clip and crush warnings
+    for label, style in (('Look_Film', 'film'), ('Look_TealOrange', 'teal')):
+        p = os.path.join(out, f'CamZone_{label}_{names[space]}.cube')
+        write_cube(p, style, space=space, label=label.replace('_', ' '))
+        print('wrote', os.path.basename(p), os.path.getsize(p) // 1024, 'KB')
 
 # check: gray patches at known stops land in the right color, for both inputs
 enc = {'gen5': gen5_encode, 'dwg': di_encode}
