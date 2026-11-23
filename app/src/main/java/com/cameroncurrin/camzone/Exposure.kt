@@ -39,9 +39,14 @@ object Expo {
     val WARN: Double get() = CLIP - 2.0 / 3.0
     /** Moves the green range for the chosen Look (0, −1 or −1.5), like the mood LUTs. */
     @Volatile var greenShift = 0.0
-    val GOOD_LOW: Double get() = -0.5 + greenShift
-    val GOOD_HIGH: Double get() = 4.0 / 3.0 + greenShift
-    const val CRUSH = -5.0
+    /**
+     * Rating: the PYXIS is exposed ⅔ stop brighter than true middle gray for clean shadows (matches the LUT v1.4).
+     * The gray line, green, blue and purple are measured from this rated gray; clip warnings stay absolute.
+     */
+    const val RATING = 2.0 / 3.0
+    val GOOD_LOW: Double get() = RATING - 1.0 / 3.0 + greenShift
+    val GOOD_HIGH: Double get() = RATING + 4.0 / 3.0 + greenShift
+    const val CRUSH = RATING - 4.0
 
     fun log2(x: Double) = ln(x) / ln(2.0)
 
@@ -69,7 +74,7 @@ object Expo {
         stops >= CLIP -> Zone.CLIPPED
         stops >= WARN -> Zone.NEAR_CLIP
         stops >= GOOD_HIGH -> Zone.BRIGHT
-        abs(stops) < 1.0 / 6.0 -> Zone.GRAY
+        abs(stops - RATING) < 1.0 / 6.0 -> Zone.GRAY
         stops >= GOOD_LOW -> Zone.GOOD
         stops >= CRUSH -> Zone.DARK
         else -> Zone.CRUSHED
@@ -108,12 +113,12 @@ object Expo {
         return when {
             st >= CLIP -> rgb(0.92, 0.12, 0.10)
             st >= WARN -> rgb(1.00, 0.52, 0.00)
-            st < -5 -> rgb(0.30, 0.06, 0.40)
-            abs(st) < 1.0 / 6.0 -> rgb(0.70, 1.00, 0.62)
+            st < CRUSH -> rgb(0.30, 0.06, 0.40)
+            abs(st - RATING) < 1.0 / 6.0 -> rgb(0.70, 1.00, 0.62)
             st >= hi -> tex(0.98, 0.86, 0.12)
             st >= lo -> tex(0.16, 0.72, 0.24)
             else -> {
-                val bs = ((st + 5) / maxOf(lo + 5, 0.5)).coerceIn(0.0, 1.0)
+                val bs = ((st - CRUSH) / maxOf(lo - CRUSH, 0.5)).coerceIn(0.0, 1.0)
                 val m = (0.45 + 0.55 * bs) * shade
                 rgb(0.12 * m, 0.38 * m, 0.92 * m)
             }

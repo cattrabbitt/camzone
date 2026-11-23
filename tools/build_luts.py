@@ -61,6 +61,11 @@ SPACES = {
 GRAY = 0.18
 CLIP_STOPS = 6.0          # starting value, confirmed later with the zebra check
 WARN_STOPS = CLIP_STOPS - 2 / 3
+# Rating: the PYXIS is exposed this much brighter than true middle gray (like rating ISO 400 at 250), so
+# shadows and night scenes come out clean. The gray line, green, blue and purple are measured from this
+# rated gray; the clip warnings stay at the sensor's real limit.
+RATING = 2 / 3
+CRUSH_RATED = -4.0       # purple: will sit near black in Rec.709
 
 COL = {
     'red': (0.92, 0.12, 0.10),
@@ -136,15 +141,16 @@ def paint(log_rgb, style, space='gen5', shift=0.0, target=1.0):
 
     red = smax >= CLIP_STOPS
     orange = (smax >= WARN_STOPS) & ~red
-    purple = s < -5
-    lo, hi = -0.5 + shift, 4 / 3 + shift
-    green = (s >= lo) & (s < hi)
-    line = np.abs(s) < 1 / 6
+    r = s - RATING                      # stops from rated gray
+    purple = r < CRUSH_RATED
+    lo, hi = -1 / 3 + shift, 4 / 3 + shift
+    green = (r >= lo) & (r < hi)
+    line = np.abs(r) < 1 / 6
     if style == 'map':
-        blue = (s >= -5) & (s < lo)
-        yellow = (s >= hi) & (smax < WARN_STOPS)
-        # blue gets darker the deeper it goes: -5 dim, -1/2 bright
-        bshade = np.clip((s + 5) / max(lo + 5, 0.5), 0, 1)[..., None]
+        blue = (r >= CRUSH_RATED) & (r < lo)
+        yellow = (r >= hi) & (smax < WARN_STOPS)
+        # blue gets darker the deeper it goes: dim near purple, bright near green
+        bshade = np.clip((r - CRUSH_RATED) / max(lo - CRUSH_RATED, 0.5), 0, 1)[..., None]
         bv = np.array(COL['blue']) * (0.45 + 0.55 * bshade) * (0.80 + 0.30 * frac)[..., None]
         out[blue] = np.clip(bv, 0, 1)[blue]
         put(yellow, COL['yellow'])
@@ -153,7 +159,7 @@ def paint(log_rgb, style, space='gen5', shift=0.0, target=1.0):
         put(line, COL['gray_line'], texture=False)
     if style == 'face':
         # Face target band: skin at the mood's target shows cyan, so you can see the face land
-        put(np.abs(s - target) < 1 / 6, COL['target'], texture=False)
+        put(np.abs(r - target) < 1 / 6, COL['target'], texture=False)
     put(purple, COL['purple'], texture=False)
     put(orange, COL['orange'], texture=False)
     put(red, COL['red'], texture=False)
@@ -161,7 +167,7 @@ def paint(log_rgb, style, space='gen5', shift=0.0, target=1.0):
 
 
 SPACE_NAMES = {'gen5': 'Blackmagic Film Gen 5', 'dwg': 'DaVinci Wide Gamut Intermediate'}
-VERSION = '1.3'
+VERSION = '1.4'
 
 
 def write_cube(path, style, n=33, space='gen5', shift=0.0, label=None, target=1.0):

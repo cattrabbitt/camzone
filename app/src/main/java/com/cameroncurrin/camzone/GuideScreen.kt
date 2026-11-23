@@ -116,9 +116,9 @@ fun GuideScreen() {
 private fun legend(z: Zone) = when (z) {
     Zone.CLIPPED -> "Red: clipped (+6 and up)"
     Zone.NEAR_CLIP -> "Orange: about to clip (+5⅓ to +6)"
-    Zone.BRIGHT -> "Yellow: bright (+1⅓ to +5⅓)"
-    Zone.GOOD -> "Green: good, faces belong here (−½ to +1⅓)"
-    Zone.GRAY -> "Light green: middle gray (0)"
-    Zone.DARK -> "Blue: dark (−5 to −½)"
-    Zone.CRUSHED -> "Dark purple: crushed (below −5)"
+    Zone.BRIGHT -> "Yellow: bright (+2 to +5⅓)"
+    Zone.GOOD -> "Green: good, faces belong here (+⅓ to +2)"
+    Zone.GRAY -> "Light green: rated gray (+⅔): gray card on this line"
+    Zone.DARK -> "Blue: dark (−3⅓ to +⅓)"
+    Zone.CRUSHED -> "Dark purple: near black in Rec.709 (below −3⅓)"
 }

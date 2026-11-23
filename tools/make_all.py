@@ -28,7 +28,7 @@ for space in ('gen5', 'dwg'):
 
 # check: gray patches at known stops land in the right color, for both inputs
 enc = {'gen5': gen5_encode, 'dwg': di_encode}
-expect = [(-6, 'purple'), (-2, 'blue'), (0, 'gray_line'), (1, 'green'), (3, 'yellow'), (5.6, 'orange'), (6.5, 'red')]
+expect = [(-3.5, 'purple'), (-2, 'blue'), (0, 'blue'), (2 / 3, 'gray_line'), (1.5, 'green'), (3, 'yellow'), (5.6, 'orange'), (6.5, 'red')]
 for space in ('gen5', 'dwg'):
     for st, name in expect:
         v = enc[space](np.full((1, 3), 0.18 * 2 ** st))

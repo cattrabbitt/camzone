@@ -317,7 +317,7 @@ fun MeterScreen(meter: PhoneMeter, link: () -> CameraLink?) {
                                 Button(enabled = !phoneOnly, onClick = {
                                     val f = AppState.frame.value
                                     if (f == null) calMsg = "No camera view yet." else {
-                                        AppState.calibration.value = Expo.grayEv(settings) - meter.sample(f, 0.5f, 0.5f, radius = 4)
+                                        AppState.calibration.value = Expo.grayEv(settings) + Expo.RATING - meter.sample(f, 0.5f, 0.5f, radius = 4)
                                         LensKit.saveCal(AppState.calibration.value)
                                         AppState.save()
                                         calMsg = "Calibrated. Offset ${Expo.formatStops(AppState.calibration.value)} stops."
@@ -621,7 +621,7 @@ fun CalibrateDialog(meter: PhoneMeter, s: CamSettings, onClose: () -> Unit) {
                     msg = "No camera view yet. Allow camera access and try again."
                 } else {
                     val raw = meter.sample(f, 0.5f, 0.5f, radius = 4)
-                    AppState.calibration.value = Expo.grayEv(s) - raw
+                    AppState.calibration.value = Expo.grayEv(s) + Expo.RATING - raw
                     AppState.save()
                     msg = "Calibrated. Offset ${"%.2f".format(AppState.calibration.value)} stops."
                 }
@@ -660,7 +660,7 @@ fun lightMeter(ev: Double, s: CamSettings, look: Look, phoneOnly: Boolean, wides
     return listOf(
         "${Expo.formatStops(now)} stops · ${Expo.zone(now).label}",
         "EV ${"%.1f".format(ev100)} · about ${fc.roundToInt()} fc (${lux.roundToInt()} lux) on an average surface",
-        "Middle gray (0): ${irisFor(0.0)}",
+        "Gray card on the line: ${irisFor(Expo.RATING)}",
         "As a face at ${Expo.formatStops(target)}: ${irisFor(target)}",
         "At ISO ${s.iso}, ${fmt(s.shutterAngle)}°, ${fmt(s.fps)} fps",
     )

@@ -23,9 +23,10 @@ data class LinkState(
 
 /** [shift] moves the green "on target" range, matching the Map, Map Moody and Map LowKey LUTs. */
 enum class Look(val label: String, val target: Double, val shift: Double) {
-    NORMAL("Map (normal)", 1.0, 0.0),
-    MOODY("Map Moody", 0.0, -1.0),
-    DARK("Map LowKey", -0.5, -1.5),
+    // targets are true stops over middle gray: the rated line (+⅔) plus +1, 0 and −½
+    NORMAL("Map (normal)", 1.0 + Expo.RATING, 0.0),
+    MOODY("Map Moody", Expo.RATING, -1.0),
+    DARK("Map LowKey", Expo.RATING - 0.5, -1.5),
 }
 
 object AppState {
